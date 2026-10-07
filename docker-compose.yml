@@ -65,6 +65,9 @@ services:
       KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
       UPLOAD_DIR: /data/uploads
       PORT: "3000"
+      # The browser reaches the api through the web proxy.
+      TRUST_PROXY: "true"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.test}
@@ -72,7 +75,8 @@ services:
       db: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
     volumes: [uploads:/data/uploads]
-    ports: ["3000:3000"]
+    # Only from this machine: everyone else goes through web, which sets the client address.
+    ports: ["127.0.0.1:3000:3000"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health > /dev/null"]
       interval: 3s

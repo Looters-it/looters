@@ -22,7 +22,7 @@ This file is the contract between the three services. Game rules live in `../../
 
 Each service ships a `.env.example` that documents its own variables.
 
-- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`; seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`. From M2: `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (default 720).
+- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`, `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (720), `COOKIE_SECURE` (false; true in production), `TRUST_PROXY` (false; true behind the web proxy), `LOGIN_RATE_MAX` (10), `LOGIN_RATE_WINDOW_SEC` (300), `REGISTER_RATE_MAX` (10), `REGISTER_RATE_WINDOW_SEC` (3600); seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
 - `jobs`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC`, `KAFKA_GROUP_ID` (default `gioco-jobs`), `UPLOAD_DIR`, `JOBS_POLL_MS` (1000), `JOBS_WORKERS` (4), `JOBS_MAX_ATTEMPTS` (5), `JOBS_STALE_AFTER_SEC` (300); tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
 - `web`: `API_PROXY_TARGET` (dev server only).
 - root `.env` (read by compose): `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, optional `KAFKA_BATTLE_TOPIC`, `KAFKA_BATTLE_PARTITIONS` (6).
@@ -61,6 +61,16 @@ There are two channels from `api` to `jobs`, and one back.
 
 - `GET /api/health` → `{status:"ok"}`: the process is up (used by the compose healthcheck).
 - `GET /api/health/ready` → `{status, database, jobs:{lastPongAt}, battleQueue}`; 503 when the database does not answer. `jobs.lastPongAt` is the time of the last reply to a ping, `battleQueue` whether the Kafka producer is connected.
+
+## Authentication and sessions
+
+- Registration takes `username`, `email`, `password`; the body is strict, so a `role` (or any other extra field) is rejected and no route can create an admin. Usernames: 3–20 characters among letters, digits and underscore, **unique regardless of case** (unique index on `lower(username)`); the spelling chosen at registration is kept for display. Emails are not unique. Passwords: 8–200 characters, hashed with argon2id.
+- Login is by username (any case) and password only; an email is never an identifier. A wrong password and an unknown username give the same `401 INVALID_CREDENTIALS`, and both verify a hash so they take the same time.
+- A login creates a `Session` row. The client receives a random 256-bit token in an httpOnly, `SameSite=Lax` cookie (`Secure` when `COOKIE_SECURE=true`); the database stores only its SHA-256, so database access does not allow reusing sessions. A session is valid while `revokedAt` is null and `expiresAt` is in the future; `lastSeenAt` is refreshed at most once a minute.
+- Logout revokes the caller's session. An admin revokes any session with `DELETE /api/admin/sessions/:id`. Either way the session stops being accepted at once and its sockets are closed (below).
+- Rate limiting (`src/auth/rate-limit.ts`, fixed windows in memory): failed logins count against the client address and against the username, so a username under attack is protected from any address; a successful login clears both. Registrations count against the client address. Over the limit: `429 RATE_LIMITED` with `Retry-After`. The counters live in the api process: with more than one api instance they must move to a shared store.
+- The client address comes from `X-Forwarded-For` only when `TRUST_PROXY=true`. The web proxy overwrites that header with the real peer address, and compose publishes the api port on `127.0.0.1` only, so it cannot be forged from outside.
+- Guards (`src/auth/guard.ts`): `optional`, `user` (401), `admin` (401, then 403 unless `role = ADMIN`).
 
 ## Data model
 
@@ -122,17 +132,17 @@ All amounts are integers; percentages round the cost up (`ceil`).
 
 ## REST API
 
-Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": string, "message": string } }` with 400/401/403/404/409/429. Auth is the session cookie.
+Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": string, "message": string } }` with 400 (`VALIDATION`, with `fields`; `BAD_REQUEST`), 401 (`UNAUTHENTICATED`), 403 (`FORBIDDEN`), 404 (`NOT_FOUND`), 409, 429 (`RATE_LIMITED`), 500 (`INTERNAL`). Routes marked with a milestone in this table do not exist yet. Auth is the session cookie.
 
 | Method and path | Auth | Purpose |
 |---|---|---|
-| `POST /auth/register` `{username,email,password}` | none | create user (email not unique), start session |
-| `POST /auth/login` `{username,password}` | none | start session |
+| `POST /auth/register` `{username,email,password}` | none | create user (email not unique), start session; `201`, `409 USERNAME_TAKEN`, `429` |
+| `POST /auth/login` `{username,password}` | none | start session; `401 INVALID_CREDENTIALS`, `429` |
 | `POST /auth/logout` | user | revoke current session |
 | `GET /auth/me` | user | `{id,username,role}` |
 | `GET /stats/online` | none | `{online:number}` |
 | `GET /admin/stats` | admin | `{users,matchesRunning,online}` |
-| `GET /admin/sessions` / `DELETE /admin/sessions/:id` | admin | list and revoke sessions |
+| `GET /admin/sessions` / `DELETE /admin/sessions/:id` | admin | active sessions (`id, createdAt, lastSeenAt, expiresAt, ip, userAgent, user, connected, current`) and revoke |
 | `GET /admin/geo/areas` / `POST /admin/geo/areas` `{name,parentId?,kind}` / `DELETE /admin/geo/areas/:id` | admin | folder tree |
 | `POST /admin/geo/areas/:id/uploads` (multipart `file`, `.kml`, `.json`, `.geojson`) | admin | store file, create `GeoUpload`, enqueue `geo.process` |
 | `GET /admin/geo/uploads` / `GET /admin/geo/uploads/:id` | admin | status, progress, errors |
@@ -176,16 +186,15 @@ Never include another empire's resources, costs, forces or rolls. Events in boar
 
 ## WebSocket
 
-`GET /ws` (cookie auth optional). Client → server: `{t:"sub",matchId}`, `{t:"unsub",matchId}`. Server → client:
+`GET /ws`. Authentication is optional and comes from the session cookie of the handshake: a socket opened as a guest stays a guest, so the client reopens it after login and logout. Server → client:
 
-- `{t:"online",n}` global count (also sent on connect)
-- `{t:"match.online",matchId,connected,total}`
-- `{t:"match.update",matchId,kinds:string[]}` the client refetches `/state`
-- `{t:"board",matchId,event}`
-- `{t:"battle.incoming",matchId,battleId}` only to the defender
-- `{t:"session.revoked"}` then the socket closes
+- `{t:"online",n}` global count, sent on connect and whenever it changes
+- `{t:"session.revoked"}` then the socket closes with code `4401`: the session was revoked, logged out or has expired
+- from M6: `{t:"match.online",matchId,connected,total}`, `{t:"match.update",matchId,kinds:string[]}` (the client refetches `/state`), `{t:"board",matchId,event}`, `{t:"battle.incoming",matchId,battleId}` (only to the defender)
 
-"Online" = distinct users with a valid session and at least one open socket; the public count also includes nothing else.
+Client → server, from M6: `{t:"sub",matchId}`, `{t:"unsub",matchId}`.
+
+"Online" = distinct users with a valid session and at least one open socket; guests are not counted. The same number is at `GET /api/stats/online`. The server pings every 30 s and drops sockets that do not answer; sessions that expire while connected are disconnected within a minute. The registry of sockets (`src/realtime/hub.ts`) lives in the api process.
 
 ## Event types (`GameEvent.type`)
 
