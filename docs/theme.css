@@ -1,0 +1,87 @@
+/* Tailwind v4 theme: the single source of colours, fonts and radii.
+   The three palettes come from the project owner; the semantic tokens below map them to roles. */
+@theme static {
+  --color-crushed-berry-50: #fde8ea;
+  --color-crushed-berry-100: #fbd0d6;
+  --color-crushed-berry-200: #f6a2ad;
+  --color-crushed-berry-300: #f27384;
+  --color-crushed-berry-400: #ee445b;
+  --color-crushed-berry-500: #e91632;
+  --color-crushed-berry-600: #bb1128;
+  --color-crushed-berry-700: #8c0d1e;
+  --color-crushed-berry-800: #5d0914;
+  --color-crushed-berry-900: #2f040a;
+  --color-crushed-berry-950: #210307;
+
+  --color-khaki-beige-50: #f6f2ef;
+  --color-khaki-beige-100: #ece6df;
+  --color-khaki-beige-200: #d9ccbf;
+  --color-khaki-beige-300: #c6b39f;
+  --color-khaki-beige-400: #b4997e;
+  --color-khaki-beige-500: #a1805e;
+  --color-khaki-beige-600: #81664b;
+  --color-khaki-beige-700: #604d39;
+  --color-khaki-beige-800: #403326;
+  --color-khaki-beige-900: #201a13;
+  --color-khaki-beige-950: #16120d;
+
+  --color-hunter-green-50: #f1f6ee;
+  --color-hunter-green-100: #e2edde;
+  --color-hunter-green-200: #c5dbbd;
+  --color-hunter-green-300: #a9c99c;
+  --color-hunter-green-400: #8cb87a;
+  --color-hunter-green-500: #6fa659;
+  --color-hunter-green-600: #598547;
+  --color-hunter-green-700: #436336;
+  --color-hunter-green-800: #2c4224;
+  --color-hunter-green-900: #162112;
+  --color-hunter-green-950: #10170c;
+
+  /* page ground chosen by the project owner */
+  --color-parchment: #fef5eb;
+
+  /* roles: parchment ground, dark leather ink, green for command, berry red for war */
+  --color-ground: var(--color-parchment);
+  --color-surface: color-mix(in srgb, var(--color-parchment) 84%, var(--color-khaki-beige-400));
+  --color-ink: var(--color-khaki-beige-950);
+  --color-dim: var(--color-khaki-beige-700);
+  --color-key: var(--color-khaki-beige-500);
+  --color-key-soft: color-mix(in srgb, var(--color-parchment) 60%, var(--color-khaki-beige-300));
+  --color-free: color-mix(in srgb, var(--color-parchment) 72%, var(--color-khaki-beige-400));
+  --color-primary: var(--color-hunter-green-700);
+  --color-primary-hover: var(--color-hunter-green-600);
+  --color-on-primary: var(--color-hunter-green-50);
+  --color-focus: var(--color-hunter-green-600);
+  --color-ok: var(--color-hunter-green-600);
+  --color-danger: var(--color-crushed-berry-600);
+  --color-danger-hover: var(--color-crushed-berry-500);
+  --color-on-danger: var(--color-crushed-berry-50);
+  --color-shade: color-mix(in srgb, var(--color-khaki-beige-900) 32%, transparent);
+
+  /* the same roles under the names shadcn/ui components expect */
+  --color-background: var(--color-ground);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-ground);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-ground);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary-foreground: var(--color-on-primary);
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-surface);
+  --color-muted-foreground: var(--color-dim);
+  --color-accent: var(--color-key-soft);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--color-key);
+  --color-input: var(--color-key);
+  --color-ring: var(--color-focus);
+
+  --font-display: "Alfa Slab One", "Rockwell", Georgia, serif;
+  /* body and interface text; the token keeps the name Tailwind and shadcn/ui read */
+  /* EB Garamond is loaded with the underscore only: Sorts Mill Goudy draws it almost invisible */
+  --font-sans: "EB Garamond", "Sorts Mill Goudy", "Goudy Old Style", Georgia, serif;
+  --font-mono: "Overpass Mono", ui-monospace, Menlo, monospace;
+  --radius-panel: 6px;
+  --radius-pill: 999px;
+}

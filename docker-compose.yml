@@ -1,0 +1,103 @@
+# One command starts everything: docker compose up --build
+# Game at http://localhost:8080 (web proxies /api and /ws to the api).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: gioco
+      POSTGRES_PASSWORD: gioco
+      POSTGRES_DB: gioco
+    ports: ["5433:5432"]
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./db/init/20-gioco.sql:/docker-entrypoint-initdb.d/20-gioco.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gioco -d gioco"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # Single-node Kafka (KRaft): carries the battle resolution queue from api to jobs.
+  kafka:
+    image: apache/kafka:4.1.0
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      # PLAINTEXT is used inside the compose network, HOST from the host machine (localhost:29092).
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      # Topics are created explicitly by kafka-init, never by a typo in a service.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    ports: ["29092:29092"]
+    volumes: [kafkadata:/var/lib/kafka/data]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  # Creates the topics and exits. One partition is one unit of parallel battle resolution.
+  kafka-init:
+    image: apache/kafka:4.1.0
+    depends_on:
+      kafka: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
+        --topic "${KAFKA_BATTLE_TOPIC:-battle.resolve}"
+        --partitions "${KAFKA_BATTLE_PARTITIONS:-6}" --replication-factor 1
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
+      UPLOAD_DIR: /data/uploads
+      PORT: "3000"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.test}
+    depends_on:
+      db: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+    volumes: [uploads:/data/uploads]
+    ports: ["3000:3000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health > /dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  jobs:
+    build: ./jobs
+    environment:
+      DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
+      UPLOAD_DIR: /data/uploads
+    depends_on:
+      # The api applies the migrations: jobs starts once it is up.
+      api: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+    volumes: [uploads:/data/uploads]
+
+  web:
+    build: ./web
+    depends_on: [api]
+    ports: ["8080:8080"]
+
+volumes:
+  dbdata:
+  kafkadata:
+  uploads:

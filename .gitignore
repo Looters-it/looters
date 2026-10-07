@@ -1,0 +1,7 @@
+# The three services are separate repositories.
+/api/
+/jobs/
+/web/
+
+.env
+.DS_Store
