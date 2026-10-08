@@ -1,14 +1,54 @@
 import { expect, test } from '@playwright/test'
 
-import { expectNoSidewaysScroll, playAs, world } from '../support/phone'
+import { expectNoSidewaysScroll, expectTappable, playAs, world } from '../support/phone'
 
 test.describe('homepage on a phone', () => {
-  test('fits the screen for a guest and lists the matches', async ({ page }) => {
+  test('opens on the demonstration, with what the game is and the matches underneath', async ({
+    page,
+  }) => {
     await page.goto('/')
+    const hero = page.getByRole('region', { name: 'Dimostrazione del gioco sulla mappa' })
+    await expect(hero).toBeVisible()
+    await expect(hero.getByText('Dimostrazione: imperi inventati')).toBeVisible()
+    // The map takes the top of the screen, as wide as the screen.
+    const viewport = page.viewportSize()!
+    const box = (await hero.boundingBox())!
+    expect(box.width).toBeGreaterThan(viewport.width - 2)
+    expect(box.height).toBeGreaterThan(viewport.height * 0.4)
+
+    // It plays by itself: the chronicle fills with what the made-up empires do.
+    const chronicle = hero.getByRole('list', { name: 'Cronaca della dimostrazione' })
+    await expect(chronicle.getByRole('listitem').first()).toContainText(
+      /ha annesso|ha conquistato|ha difeso/,
+      { timeout: 30_000 },
+    )
+
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(page.getByText(world.matchName).first()).toBeVisible()
     await expectNoSidewaysScroll(page)
     await page.screenshot({ path: test.info().outputPath('home.png'), fullPage: true })
+  })
+
+  test('invites a guest to sign in from the hero', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Accedi per giocare' }).click()
+    await expect(page.getByRole('dialog', { name: 'Accesso e registrazione' })).toBeVisible()
+    await expectTappable(page, ['Accedi per giocare'])
+  })
+
+  test('offers a player to create a match, and shows the matches as cards in a row', async ({
+    page,
+    context,
+  }) => {
+    await playAs(context, 'anna')
+    await page.goto('/')
+    await expect(page.getByRole('link', { name: 'Crea una partita' })).toBeVisible()
+    const row = page.getByRole('region', { name: 'Partite in corso' }).getByRole('list')
+    await expect(row.getByRole('listitem').first()).toBeVisible()
+    // The row scrolls sideways by itself: the page does not.
+    const sideways = await row.evaluate((list) => list.scrollWidth >= list.clientWidth)
+    expect(sideways).toBe(true)
+    await expectNoSidewaysScroll(page)
   })
 
   test('opens the account panel inside the screen', async ({ page }) => {

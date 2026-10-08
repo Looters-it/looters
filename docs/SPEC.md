@@ -327,6 +327,12 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Se una pagina si rompe, il giocatore non vede una schermata bianca: la barra in alto resta, compare "Qualcosa si è rotto" con il pulsante per ricaricare e il collegamento alla homepage. L'errore viene segnalato da solo al server.
 - Di un errore del browser si registrano il messaggio tecnico e la pagina in cui è successo, mai quello che il giocatore stava scrivendo.
 
+### Homepage
+
+- In alto una **grande hero**: a sinistra la mappa interattiva che mostra una **dimostrazione** (sei imperi inventati che annettono e si contendono comuni veri, con la cronaca dei messaggi in basso); a destra titolo, descrizione del gioco e il pulsante: "Crea una partita" per chi ha fatto l'accesso, "Accedi per giocare" per gli ospiti, che apre il pannello di accesso e registrazione.
+- La dimostrazione è dichiarata sulla mappa ("Dimostrazione: imperi inventati"), sceglie a ogni visita una zona diversa, si ferma quando la scheda non è in vista e resta immobile per chi ha chiesto meno animazioni. Non applica le regole del gioco: serve solo a far capire com'è.
+- Sotto, una fascia con le **partite in corso come card affiancate** che scorrono in orizzontale (prima "Le tue partite", se ce ne sono), con i filtri per nome e partecipanti e le pagine. Su telefono la mappa sta in cima e il testo sotto.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
