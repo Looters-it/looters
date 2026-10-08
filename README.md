@@ -69,8 +69,23 @@ Lo stesso file si può caricare dalla dashboard admin (<http://localhost:8080/ad
 
 Lo schema si cambia solo in `api/prisma/schema.prisma`, poi `pnpm db:migrate`. I vincoli che Prisma non sa esprimere (CHECK, indici parziali) si aggiungono a mano nel file SQL della migrazione. `jobs` non modifica mai lo schema.
 
-Quando `api` aggiunge una chiave alla configurazione di partita, va aggiunto il campo in `jobs/internal/rules/config.go` e rigenerato il file di prova:
+Quando `api` aggiunge una chiave alla configurazione di partita, va aggiunto il campo in `jobs/internal/rules/config.go`.
+
+`jobs` tiene due copie di cose che appartengono ad `api`: lo schema del database su cui girano i suoi test (`jobs/testdata/schema.sql`, la somma delle migrazioni) e la configurazione predefinita di una partita (`jobs/internal/rules/testdata/default-config.json`). Dopo una nuova migrazione o una modifica alle regole si rigenerano insieme, e con `--check` si verifica che siano aggiornate:
 
 ```sh
-cd api && pnpm exec tsx -e 'import {DEFAULT_MATCH_RULES} from "./src/rules/config.ts"; console.log(JSON.stringify(DEFAULT_MATCH_RULES,null,2))' > ../jobs/internal/rules/testdata/default-config.json
+./scripts/sync-jobs-fixtures.sh          # rigenera
+./scripts/sync-jobs-fixtures.sh --check  # fallisce se una copia è rimasta indietro
 ```
+
+### Integrazione continua
+
+Ogni repository ha il suo `.github/workflows/ci.yml` (GitHub Actions), che parte a ogni push su `main` e a ogni pull request:
+
+| Repository | Cosa controlla |
+| --- | --- |
+| `api` | formattazione, lint, tipi, test (con PostGIS e Kafka veri, migrati da zero), build |
+| `jobs` | `gofmt`, `go vet`, test (con PostGIS e Kafka veri, schema da `testdata/schema.sql`), build |
+| `web` | formattazione, lint, tipi, test, build |
+
+In CI i test di integrazione non vengono saltati: le variabili `TEST_DATABASE_URL` e `TEST_KAFKA_BROKERS` sono sempre impostate. Il controllo `--check` delle copie di `jobs` non può girare in CI, perché i repository sono separati: va lanciato a mano prima di un commit che tocca migrazioni o regole.
