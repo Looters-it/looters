@@ -33,7 +33,7 @@ test.describe('homepage on a phone', () => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Accedi per giocare' }).click()
     // A page of its own for signing in and registering, inside the screen.
-    await expect(page).toHaveURL(/\/accesso$/)
+    await expect(page).toHaveURL(/\/auth\/login$/)
     await expect(page.getByRole('heading', { level: 1, name: 'Entra in Looters' })).toBeVisible()
     await page.getByRole('tab', { name: 'Registrati' }).click()
     await expect(page.getByLabel('Email')).toBeVisible()
@@ -61,7 +61,7 @@ test.describe('homepage on a phone', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('link', { name: 'Accesso e registrazione' }).click()
-    await expect(page).toHaveURL(/\/accesso$/)
+    await expect(page).toHaveURL(/\/auth\/login$/)
     await expect(page.getByRole('tab', { name: 'Accedi' })).toBeVisible()
     await page.getByLabel('Nome utente').fill('qualcuno')
     await expect(page.getByLabel('Nome utente')).toHaveValue('qualcuno')
@@ -71,7 +71,7 @@ test.describe('homepage on a phone', () => {
   test('remembers where a guest was when they go to sign in', async ({ page }) => {
     await page.goto(`/match/${world.matchId}`)
     await page.getByRole('link', { name: 'Accesso e registrazione' }).click()
-    await expect(page).toHaveURL(new RegExp(`/accesso\\?poi=%2Fmatch%2F${world.matchId}$`))
+    await expect(page).toHaveURL(new RegExp(`/auth/login\\?next=%2Fmatch%2F${world.matchId}$`))
   })
 
   test('takes a player to their match', async ({ page, context }) => {
