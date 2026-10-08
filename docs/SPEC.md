@@ -288,6 +288,12 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Quello che fanno gli altri giocatori compare da solo, senza ricaricare, entro circa **un secondo**: quando in una partita succedono molte cose insieme, gli aggiornamenti vengono raggruppati (al massimo uno al secondo per partita) invece di arrivare uno per ogni mossa.
 - La propria mossa si vede subito, e l'avviso di un attacco in arrivo non viene mai ritardato.
 
+### Lingua
+
+- L'interfaccia è in italiano. È predisposta per altre lingue, ma **nessuna seconda lingua è ancora presente**: finché ce n'è una sola non compare alcuna scelta.
+- Quando ce ne sarà una seconda, la scelta "Lingua" comparirà nel pannello dell'account (anche senza aver fatto l'accesso). All'inizio vale la lingua del browser, se disponibile, altrimenti l'italiano; la scelta fatta viene ricordata sul dispositivo. Ciò che una traduzione non copre ancora compare in italiano.
+- I nomi dei comuni, degli imperi e i messaggi dei giocatori non vengono tradotti.
+
 ### Accessibilità
 
 - **Imperi distinguibili senza il colore**: ogni impero ha una **sigla** (le iniziali del nome senza articoli e preposizioni, al massimo tre lettere; se due imperi avrebbero la stessa, il secondo prende un numero: `DT`, `DT2`). La sigla è scritta sui comuni dell'impero in mappa, sotto il nome del comune, e accanto al nome dell'impero in classifica. Il pulsante "Sigle degli imperi" sopra la mappa le nasconde; la scelta viene ricordata sul dispositivo. Restano lo stemma e il nome dell'impero nella scheda di ogni comune.
@@ -366,6 +372,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Seconda lingua** `[ASSUNZIONE]`: è pronta la struttura, non una traduzione: quale lingua aggiungere e chi la traduce resta da decidere. La scelta della lingua è ricordata sul dispositivo e non nell'account del giocatore.
 
 - **Produzione** `[ASSUNZIONE]`: un solo server con Docker Compose e HTTPS automatico (Caddy); nessuna scelta su fornitore di hosting, monitoraggio, copia dei backup fuori sede e fornitore della mappa di base, che restano da decidere (`docs/RILASCIO.md`, "Limiti").
 

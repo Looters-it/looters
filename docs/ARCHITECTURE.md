@@ -212,6 +212,16 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
 
+## Languages
+
+The interface is in Italian and ready for others; none is shipped yet.
+
+- **Adding a language** is adding `web/src/i18n/locales/<code>.json` (a copy of `it.json`, translated). Nothing else: `i18n/index.ts` finds the files at build time (`import.meta.glob`), each becomes its own chunk loaded only when chosen, and the selector in the account panel (`i18n/LanguageSelect.tsx`) appears as soon as there are two. Languages are listed under their own name (`Intl.DisplayNames`).
+- **Which language**: the one chosen before on the device (`localStorage` key `lang`), otherwise the first language of the browser that exists, otherwise Italian. It is set before the first render and written on `<html lang>`. Italian is the fallback for any key a translation lacks.
+- **Kept in step by a test** (`i18n/i18n.test.tsx`): every locale file must have exactly the messages of the Italian one (plural endings aside, since languages differ in their plural forms) and may not use a placeholder the Italian message does not have. Keys are also typed against `it.json`, so a key used in code and missing there does not compile.
+- **Nothing to translate comes from the server**: errors are codes, board and history entries are event types with names, structures are types; the interface writes every sentence. Dates, numbers and relative times are formatted with the current language. Names of municipalities are data and stay as they are (they are searched and sorted with Italian rules whatever the language).
+- Not prepared: right-to-left layouts, and texts of the game written by players (empire names, messages), which are shown as typed.
+
 ## Production
 
 - `docker-compose.prod.yml` is an override of the base file (`ports: !reset []` removes what development publishes): a Caddy `proxy` terminates TLS for `DOMAIN` and is the only published service; secrets are required from `.env`; restart policies, log rotation, memory caps, `COOKIE_SECURE`, and the `backup` service on. `scripts/deploy.sh` is backup → build → up → wait for `/api/health/ready`. Operator's guide: `docs/RILASCIO.md`.
