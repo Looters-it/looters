@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 5 (Partite) completata.** Si può creare una partita, iscriversi e vederla partire; annessioni, turni e scontri non esistono ancora.
+Stato: **milestone 6 (Turni, risorse e annessioni) completata.** Una partita avanza turno dopo turno, gli imperi guadagnano risorse e si espandono annettendo i comuni liberi; gli scontri non esistono ancora.
 
 ## Cosa esiste
 
@@ -106,7 +106,6 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - All'ora di inizio la partita parte da sola: passa al turno 1 e la fine del turno viene calcolata dall'ora di inizio prevista.
 - Le capitali scelte prima dell'inizio sono protette fino alla fine del turno 1. Chi entra a partita iniziata è protetto fino alla fine del turno in cui entra.
 - Servono almeno 2 imperi (regola della partita). Con meno, all'ora di inizio non succede nulla: la partita resta con le iscrizioni aperte e chi l'ha creata può fissare una nuova data.
-- Una partita iniziata resta ferma al turno 1: la chiusura dei turni arriva con la milestone 6.
 
 **Cosa vede chi**
 
@@ -117,6 +116,43 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 - "Partite attive" elenca le partite con iscrizioni aperte o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
 - "Le tue partite" elenca quelle che hai creato (bozze comprese) o a cui partecipi.
+
+### Turni
+
+- Il turno ha una durata fissa. Alla scadenza viene chiuso da solo e si apre il successivo; la scadenza del nuovo turno si calcola da quella prevista del precedente, non dal momento in cui la chiusura è avvenuta.
+- Alla chiusura: ogni impero attivo riceve il guadagno, il limite di annessioni si azzera, le protezioni dei comuni appena acquisiti finiscono, e viene salvato chi possiede ogni comune (servirà allo storico).
+- La chiusura è ripetibile: se viene eseguita due volte per lo stesso turno, la seconda non ha effetto.
+- Le azioni dei giocatori hanno effetto immediato. Ogni azione dichiara il turno in cui è stata decisa: se nel frattempo il turno è cambiato viene rifiutata e nulla viene speso.
+- Una partita senza durata massima non finisce mai: le condizioni di fine partita arrivano con la milestone 8.
+
+### Risorse
+
+- Le risorse di un impero stanno sui suoi territori: non esiste una cassa centrale e il totale è sempre la somma dei territori.
+- **Guadagno per turno**: 50 più 10 per ogni comune controllato (regole della partita).
+- **Ripartizione del guadagno**: è una regola permanente dell'impero. "In parti uguali" divide il guadagno tra i territori; "in proporzione" lo divide secondo un peso per territorio, fissato dal giocatore con le risorse che ogni comune ha nel momento in cui sceglie questa regola. Gli importi sono interi e il resto va alla capitale.
+- Un comune acquisito dopo aver scelto la proporzione ha peso 1, quindi riceve molto poco finché il giocatore non riapplica la regola.
+- **Spostamento**: il giocatore può ridistribuire le risorse tra i propri territori in qualsiasi momento; il totale non cambia. Un territorio coinvolto in uno scontro è bloccato.
+- Nella scheda "Risorse per comune" ogni comune ha uno slider. In cima ci sono i comuni, le risorse totali e quelle non allocate. Abbassare un comune libera risorse; un comune può salire solo di quanto è stato liberato. "Dividi in parti uguali" e "Annulla" agiscono sulla bozza; nulla viene salvato finché non si preme "Applica", attivo solo quando le non allocate sono zero.
+
+### Annessione
+
+- Un giocatore può annettere un comune libero confinante con un proprio territorio. L'effetto è immediato.
+- Costa 50 risorse, pagate per intero da un proprio territorio confinante con il bersaglio, scelto dal giocatore. Se nessun territorio confinante ha 50 risorse l'annessione non è possibile.
+- Limite: 1 annessione per turno.
+- Il comune annesso conserva le risorse che aveva (la dotazione nascosta, o quelle rimaste dopo la caduta di un impero), che da quel momento sono dell'impero e visibili al solo proprietario.
+- Il comune appena annesso può ricevere risorse subito ed è protetto fino alla fine del turno.
+- Se due imperi annettono lo stesso comune nello stesso momento lo ottiene il primo; il secondo riceve un errore, non spende nulla e conserva l'annessione del turno.
+- I saldi non possono mai andare in negativo, nemmeno con richieste contemporanee.
+
+### Interfaccia di partita
+
+- **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
+- **Pannello a destra con menu**: La partita, Classifica, e sotto "Il tuo impero" la voce Risorse per comune. Dentro una voce il menu sparisce e resta il pulsante "Menu".
+- **Classifica**: barra di ripartizione dei comuni e una scheda per impero con posizione, nome, giocatore, numero di comuni e un quadratino per comune (capitale contornata, protetto vuoto). Passando su una scheda i territori dell'impero si evidenziano in mappa. Non mostra mai le risorse.
+- **Scheda del comune**: toccando un comune si apre con nome, impero, risorse (numero se proprie, "nascoste" altrimenti; nulla per i comuni liberi), stato, l'annessione quando è possibile e i comuni confinanti, ciascuno apribile. Quando l'annessione non è possibile il motivo è scritto.
+- Selezionando un proprio comune, i confinanti liberi si evidenziano in mappa.
+- **Aggiornamenti in tempo reale**: quando qualcosa cambia nella partita la pagina si aggiorna da sola.
+- **Telefono**: mappa e pannello occupano lo schermo a turno, con due schede in fondo.
 
 ### Configurazione delle regole di partita
 
@@ -142,7 +178,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 
-Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources` e le quattro della dotazione nascosta; le altre sono definite e validate in attesa delle rispettive milestone.
+Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost` e `annexPerTurn`; le altre sono definite e validate in attesa delle rispettive milestone.
 
 ### Vincoli garantiti dal database
 
@@ -174,6 +210,9 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Peso dei comuni nuovi nella ripartizione in proporzione**: oggi è 1. Da decidere se dare al comune nuovo un peso più sensato (per esempio la media degli altri).
+- **Connessi della partita**: conto i giocatori con un impero attivo che hanno la partita aperta in quel momento, non quelli semplicemente collegati al sito. Da confermare.
+- **Interfaccia su telefono**: le due schede in fondo (mappa, pannello) non sono state provate su un telefono reale; la terza scheda del prototipo, la bacheca, arriva con la milestone 10.
 - **Giocatori minimi per partire**: il brief non dice cosa succede se all'ora di inizio c'è un solo iscritto o nessuno. Ho scelto: servono almeno 2 imperi, altrimenti la partita aspetta una nuova data. Da confermare.
 - **Iscrizioni a partita iniziata**: il brief non lo dice in modo esplicito. Ho scelto di permetterle, con una regola per disattivarle. Da confermare.
 - **Abbandono**: un giocatore iscritto non può ritirarsi né cambiare comune di partenza prima dell'inizio. Il brief non lo prevede.

@@ -39,7 +39,7 @@ There are two channels from `api` to `jobs`, and one back.
   - `system.ping` `{ "sentAt": string }` sent by `api` at startup; `jobs` answers with the `system.pong` notification
   - `geo.process` `{ "uploadId": string }` enqueued in the transaction that records the upload
   - `match.start` `{ "matchId": string }` scheduled at `Match.startAt` when registrations open, and again (dedupe key `match.start:<id>:<startAt>`) whenever the owner moves the date; a job that finds the date moved later does nothing
-  - `turn.close` `{ "matchId": string, "turn": number }` scheduled at `Match.turnEndsAt` (M6)
+  - `turn.close` `{ "matchId": string, "turn": number }` scheduled at `Match.turnEndsAt` with dedupe key `turn.close:<matchId>:<turn>`: by `match.start` for turn 1, then by each closing for the next turn, always inside the transaction that opens that turn
 - Every job must be idempotent: `turn.close` for a turn that is not the match's `currentTurn` is a no-op; all its effects happen in one transaction that also advances `currentTurn`.
 
 ### Kafka (battle resolution)
@@ -142,11 +142,23 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
 - **Life cycle**: `DRAFT → OPEN → RUNNING → FINISHED`. A draft exists only for its owner (404 for everyone else) and is fully editable. `POST /matches/:id/open` turns it `OPEN`: from then on map, turn length and rules are locked; name, start, maximum days, maximum players and invite code can still change.
 - **Territories** are created when registrations open, in the same transaction: one `Territory` per municipality of the chosen folders (each municipality once, even if folders overlap), each with its hidden starting resources. With 7,896 municipalities it takes under a second.
 - **Hidden starting resources** (`src/rules/hidden-resources.ts`): a normal(`hiddenMean`, `hiddenSd`) drawn with the system's secure generator, rejected and redrawn outside [`hiddenMin`, `hiddenMax`], rounded. They sit in `Territory.resources` and are never sent to a client while the territory is free: `GET /matches/:id/state` lists owned territories only.
-- **Start** (`jobs`, `match.start`): if the match is `OPEN`, its `startAt` has come and it has at least `minPlayersToStart` active empires, one transaction sets `RUNNING`, `currentTurn = 1`, `turnEndsAt = startAt + turnHours` (counted from the scheduled start, not from when the job ran), protects every capital through turn 1, records `MATCH_STARTED` and notifies `match.started`. Otherwise it does nothing: a match with too few players stays `OPEN` until the owner sets a new date. Scheduling `turn.close` arrives with M6.
+- **Start** (`jobs`, `match.start`): if the match is `OPEN`, its `startAt` has come and it has at least `minPlayersToStart` active empires, one transaction sets `RUNNING`, `currentTurn = 1`, `turnEndsAt = startAt + turnHours` (counted from the scheduled start, not from when the job ran), protects every capital through turn 1, records `MATCH_STARTED` and notifies `match.started`. Otherwise it does nothing: a match with too few players stays `OPEN` until the owner sets a new date. The closing of turn 1 is queued in the same transaction.
 - **Join** (`POST /matches/:id/join`): allowed while `OPEN`, and while `RUNNING` if `lateJoin`. The match row is locked `FOR UPDATE`, so joins of one match run one at a time: invite code, one empire per user, free seats, name (ignoring case) and colour unique in the match. The territory is taken with a conditional update (`ownerEmpireId IS NULL`): of two players choosing the same municipality the second gets `409 TERRITORY_TAKEN` and nothing of theirs is saved. The territory becomes the capital, gains `startResources` on top of its hidden resources, and is protected until the end of the current turn (turn 1 before the start).
 - **Empire identity**: name 3–40 characters, colour from `EMPIRE_COLORS` (120 generated colours, also the upper limit of players per match), emblem from `EMPIRE_EMBLEMS` (ten drawings), motto up to 80 characters. Changeable only while the match is `OPEN`.
 - **Viewer filter** (`MatchService.state`): `resources` is the number only on the viewer's own territories and `null` on everyone else's; free territories are absent. Events carry names and ids, never amounts.
 - **Map of a match**: `GET /matches/:id/map`, `/units` and `/tiles/...` mirror the folder routes, restricted to the match's municipalities; the set never changes after opening, so tiles are immutable.
+
+## Turns and immediate actions
+
+- **Locking**: every action of a player (`src/modules/game/service.ts`) runs in a transaction that takes the match row `FOR SHARE` and the player's empire row `FOR UPDATE`. The turn close takes the match row `FOR UPDATE`. So actions of different players run in parallel, two actions of one player never overlap, and no action straddles a turn: the close waits for the actions in flight, and actions wait for the close.
+- **Turn of the action**: the body of every action carries `turn`, the turn the player was looking at. If it is not the current one the action is refused with `409 TURN_CHANGED`.
+- **Annex** (`POST /matches/:id/annex {geoUnitId, payFromTerritoryId, turn}`): the target must be free; the payer must be an own territory adjacent to it and not in a battle; the empire must have annexations left this turn. Payment (`resources >= cost`) and taking (`ownerEmpireId IS NULL`) are conditional updates: if either finds the row changed the transaction rolls back, so a territory is never overdrawn, a municipality never gets two owners, and whoever loses the race pays nothing and keeps the annexation of the turn. The target keeps the resources already on it.
+- **Allocate** (`POST /matches/:id/allocate {amounts, turn}`): new amounts for some own territories, none in a battle, with the same total as before. Rows are locked in id order.
+- **Allocation rule** (`PUT /matches/:id/allocation-rule {mode, weights?}`): `EQUAL` or `WEIGHTED`, with a weight per territory.
+- **Adjacency** of game territories is computed on demand from `TerritoryUnit` and `GeoAdjacency` (both directions, with a UNION so each uses its index).
+- **Turn close** (`jobs`, `internal/turnclose`), one transaction: lock the match; do nothing unless it is `RUNNING` and `currentTurn` equals the job's turn (this makes the job repeatable); credit each active empire `incomeBase + incomePerUnit × municipalities`, split among its territories by its rule (`EQUAL`: equal parts; `WEIGHTED`: in proportion to `Territory.weight`, equal parts if all weights are zero), whole numbers, the remainder to the capital; reset `annexedThisTurn`; write `TurnSnapshot` (municipality → empire, owned ones only); set `currentTurn + 1` and `turnEndsAt + turnHours` (from when the turn was due, not from when the job ran, so a late close catches up turn by turn); record `TURN_CLOSED`; queue the next close; notify `turn.closed`.
+- **Protection** is stored as the number of the turn of acquisition (`protectedUntilTurn`) and read as `>= currentTurn`: moving to the next turn ends it with no update.
+- **Unit card** (`GET /matches/:id/units/:geoUnitId`): `{geoUnitId, name, territory:{id, name, ownerEmpireId, protected, inBattle, resources|null}, neighbours:[{geoUnitId, name, territoryId, ownerEmpireId}], annex}`; `annex` is `{cost, left, payFrom:[{territoryId, name, resources, usable}]}` for a player looking at a free municipality of a running match, otherwise null. `resources` of the territory is null unless it is the viewer's, free territories included.
 
 ## Game mechanics, precisely
 
@@ -202,8 +214,10 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `PATCH /matches/:id/empire` `{name,color,emblem,motto}` | player | restyle before the start; `409 MATCH_STARTED` |
 | `GET /matches/:id/map` / `/units` / `/tiles/:z/:x/:y.mvt?v=` | none | map of the match (see Matches) |
 | `GET /matches/:id/state` | optional | everything the viewer may see (below) |
-| `POST /matches/:id/annex` `{territoryId,payFromId}` | player | |
-| `POST /matches/:id/allocate` `{amounts:{[territoryId]:number}}` | player | |
+| `GET /matches/:id/units/:geoUnitId` | optional | card of a municipality (see Turns and immediate actions) |
+| `POST /matches/:id/annex` `{geoUnitId, payFromTerritoryId, turn}` | player | `409 ANNEX_LIMIT`, `TERRITORY_TAKEN`, `NOT_ADJACENT`, `NOT_ENOUGH_RESOURCES`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY`, `TURN_CHANGED`, `MATCH_NOT_RUNNING`; `403 NOT_A_PLAYER` |
+| `POST /matches/:id/allocate` `{amounts:{[territoryId]:number}, turn}` | player | `409 ALLOCATION_SUM`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY` |
+| `PUT /matches/:id/allocation-rule` `{mode, weights?}` | player | how each turn's income is split |
 | `POST /matches/:id/attacks` `{targetId,fromIds[]}` | player | |
 | `POST /matches/:id/battles/:battleId/respond` `{action:"DEFEND"|"SURRENDER"}` | player | |
 | `POST /matches/:id/capital` `{territoryId}` | player | move capital |
@@ -219,11 +233,13 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 ```ts
 {
   match: MatchSummary,                       // as GET /matches/:id
-  me: null | { empireId },
+  me: null | { empireId, annexLeft, turnValue, allocationMode },
   empires: [{ id, name, color, emblem, motto, username, status, capitalTerritoryId, units: number }],
   // Owned territories only: every other municipality of the match is free.
   territories: [{ id, name, ownerEmpireId, geoUnitIds: number[], isArea: boolean, protected: boolean,
-                  resources: number | null /* null = hidden from this viewer */ }]
+                  resources: number | null /* null = hidden from this viewer */,
+                  weight: number | null /* own territories only */ }],
+  online: { connected: number, total: number }
 }
 ```
 
@@ -231,16 +247,22 @@ Never include another empire's resources, costs, forces or rolls. Events in boar
 
 ## WebSocket
 
-`GET /ws`. Authentication is optional and comes from the session cookie of the handshake: a socket opened as a guest stays a guest, so the client reopens it after login and logout. Server → client:
+`GET /ws`. Authentication is optional and comes from the session cookie of the handshake: a socket opened as a guest stays a guest, so the client reopens it after login and logout.
+
+Client → server: `{t:"sub",matchId}` and `{t:"unsub",matchId}` to follow a match; the client sends its subscriptions again after every reconnection.
+
+Server → client:
 
 - `{t:"online",n}` global count, sent on connect and whenever it changes
 - `{t:"session.revoked"}` then the socket closes with code `4401`: the session was revoked, logged out or has expired
-- from M6: `{t:"match.online",matchId,connected,total}`, `{t:"match.update",matchId,kinds:string[]}` (the client refetches `/state`), `{t:"board",matchId,event}`, `{t:"battle.incoming",matchId,battleId}` (only to the defender)
+- `{t:"match.update",matchId,kinds:string[]}` to the followers of a match when something in it changed (`kinds` hints at what: `match`, `empires`, `territories`, `resources`, `turn.closed`, `match.started`). It carries no data: the client reads `/state` again, so what a viewer may see is decided in one place
+- `{t:"match.online",matchId,connected}` to the followers of a match when the number of its players watching it changes
+- from M7: `{t:"battle.incoming",matchId,battleId}` (only to the defender); from M10: `{t:"board",matchId,event}`
 
-Client → server, from M6: `{t:"sub",matchId}`, `{t:"unsub",matchId}`.
+"Online" = distinct users with a valid session and at least one open socket; guests are not counted. The same number is at `GET /api/stats/online`. Per match, "connected" = distinct users with an active empire in the match and a socket following it; the total is the number of active empires. Whether a user plays in a match is read once, when the socket subscribes.
 
-"Online" = distinct users with a valid session and at least one open socket; guests are not counted. The same number is at `GET /api/stats/online`. The server pings every 30 s and drops sockets that do not answer; sessions that expire while connected are disconnected within a minute. The registry of sockets (`src/realtime/hub.ts`) lives in the api process.
+The server pings every 30 s and drops sockets that do not answer; sessions that expire while connected are disconnected within a minute. The registry of sockets (`src/realtime/hub.ts`) lives in the api process. What `jobs` commits (a turn closed, a match started) reaches the api as a `game_events` notification and is forwarded as `match.update`.
 
 ## Event types (`GameEvent.type`)
 
-`MATCH_OPENED`, `EMPIRE_CREATED` (`data.empireName`, `data.territoryName`), `ANNEXED`, `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
+`MATCH_OPENED`, `MATCH_STARTED`, `TURN_CLOSED`, `EMPIRE_CREATED` and `ANNEXED` (`data.empireName`, `data.territoryName`), `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
