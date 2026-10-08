@@ -11,7 +11,7 @@ export async function playAs(context: BrowserContext, who: 'anna' | 'bruno'): Pr
   ])
 }
 
-export const matchUrl = () => `/partite/${world.matchId}`
+export const matchUrl = () => `/match/${world.matchId}`
 
 /** The three views of a match on a phone, at the bottom of the screen. */
 export const phoneTab = (page: Page, name: 'Mappa' | 'Pannello' | 'Bacheca') =>

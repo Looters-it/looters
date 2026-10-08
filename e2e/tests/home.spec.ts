@@ -69,9 +69,9 @@ test.describe('homepage on a phone', () => {
   })
 
   test('remembers where a guest was when they go to sign in', async ({ page }) => {
-    await page.goto(`/partite/${world.matchId}`)
+    await page.goto(`/match/${world.matchId}`)
     await page.getByRole('link', { name: 'Accesso e registrazione' }).click()
-    await expect(page).toHaveURL(new RegExp(`/accesso\\?poi=%2Fpartite%2F${world.matchId}$`))
+    await expect(page).toHaveURL(new RegExp(`/accesso\\?poi=%2Fmatch%2F${world.matchId}$`))
   })
 
   test('takes a player to their match', async ({ page, context }) => {
@@ -84,7 +84,7 @@ test.describe('homepage on a phone', () => {
       .getByRole('link', { name: 'Entra' })
       .first()
       .click()
-    await expect(page).toHaveURL(new RegExp(`/partite/${world.matchId}$`))
+    await expect(page).toHaveURL(new RegExp(`/match/${world.matchId}$`))
     await expect(page.getByRole('tab', { name: 'Mappa' })).toBeVisible()
   })
 
@@ -117,7 +117,7 @@ test.describe('in English', () => {
 
   test('shows a match in English inside the screen', async ({ page, context }) => {
     await playAs(context, 'anna')
-    await page.goto(`/partite/${world.matchId}`)
+    await page.goto(`/match/${world.matchId}`)
     await expect(page.getByRole('tab', { name: 'Map', exact: true })).toBeVisible()
     await page.getByRole('tab', { name: 'Panel', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Leaderboard', exact: true })).toBeVisible()
