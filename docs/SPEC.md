@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 3 (Dashboard admin e dati geografici) completata.** Nessuna azione di gioco è ancora disponibile.
+Stato: **milestone 4 (Mappa) completata.** Nessuna azione di gioco è ancora disponibile.
 
 ## Cosa esiste
 
@@ -63,6 +63,19 @@ Stato: **milestone 3 (Dashboard admin e dati geografici) completata.** Nessuna a
 
 Verifica sui confini reali di tutti i comuni italiani (7.896): elaborati in circa 20 secondi, 22.811 confini. Restano senza confinanti solo Campione d'Italia e tredici comuni insulari (Capraia Isola, Carloforte, Favignana, Isola del Giglio, Isole Tremiti, La Maddalena, Lampedusa e Linosa, Lipari, Pantelleria, Ponza, Procida, Ustica, Ventotene): sono i casi da collegare a mano.
 
+### Mappa
+
+- La mappa mostra OpenStreetMap, attenuata, con sopra i confini dei comuni. I comuni liberi sono semitrasparenti e lasciano leggere la mappa sottostante; quelli di un impero sono a colore pieno.
+- Si ingrandisce con i pulsanti, con la rotella e con due dita. La mappa non ruota.
+- A zoom basso compaiono i nomi degli imperi, a zoom alto i nomi dei comuni; quando due nomi si sovrappongono resta quello del comune o dell'impero più grande.
+- Toccando un comune lo si seleziona: il suo confine viene marcato e compare un riquadro ancorato al comune. Su telefono il riquadro è una scheda che sale dal basso.
+- Nelle mappe inserite in una pagina (homepage, anteprima admin) un dito scorre la pagina e due dita muovono la mappa.
+- **Homepage**: mostra la mappa dell'area geografica più grande, con tutti i comuni liberi, finché non esistono partite.
+- **Anteprima admin**: nella scheda "Dati geografici" ogni cartella con comuni ha la sua mappa. Toccando un comune si evidenziano i suoi confinanti, per controllare le adiacenze a vista. Il pulsante "Imperi di prova" colora una partita fittizia con cento imperi, per valutare come regge la mappa.
+- I cambi di proprietà aggiornano solo i comuni interessati, senza ricaricare la mappa.
+
+Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di ogni impero, gli stemmi accanto ai nomi, le icone di stato (capitale, protetto, sotto attacco, blocco, allerta).
+
 ### Configurazione delle regole di partita
 
 Ogni valore numerico di gioco è una chiave della configurazione di partita (`api/src/rules/config.ts`). Alla creazione di una partita la configurazione viene salvata per intero in `Match.config`: cambiare un default non modifica le partite esistenti. Le chiavi sconosciute e i valori incoerenti vengono rifiutati.
@@ -114,6 +127,9 @@ Queste chiavi sono definite e validate, ma nessuna regola le usa ancora.
 
 ## Punti aperti
 
+- **Mappa di sfondo**: in sviluppo si usano le tile pubbliche di OpenStreetMap, che non sono ammesse per un sito in produzione. Prima del rilascio serve un fornitore di tile (o un server proprio).
+- **Prova su telefono**: la mappa è stata verificata su computer con l'Italia intera; su un telefono reale non è ancora stata provata.
+- **Colori degli imperi di prova**: derivano dalle tre palette del tema e oltre una dozzina di imperi si confondono, come già annotato per la palette dedicata.
 - **Soglie dei confini** (5 metri di scarto, 50 metri di confine in comune): sono una mia proposta, configurabile; sull'Italia intera danno il risultato atteso sui casi controllati.
 - **Isole**: i quattordici comuni senza confinanti vanno collegati a mano dall'admin, scegliendo a quali comuni della terraferma o di altre isole unirli.
 - **Limiti dei tentativi**: i valori (10 accessi falliti in 5 minuti, 10 registrazioni all'ora per indirizzo) sono una mia proposta: il brief chiede il limite ma non ne fissa i numeri.
