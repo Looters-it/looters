@@ -6,7 +6,7 @@ This file is the contract between the three services. Game rules live in `../../
 
 | Service | Stack | Port | Owns |
 |---|---|---|---|
-| `db` | PostgreSQL 16 + PostGIS 3.4 (`postgis/postgis:16-3.4`) | 5432 (5433 on the host) | data |
+| `db` | PostgreSQL 16 + PostGIS 3.5 with GEOS 3.13 (`imresamu/postgis:16-3.5-alpine`: the multi-architecture build, the official image is amd64 only and ships an older GEOS without `ST_CoverageSimplify`) | 5432 (5433 on the host) | data |
 | `kafka` | Apache Kafka 4.1, single node, KRaft (`apache/kafka:4.1.0`) | 9092 (29092 on the host) | battle resolution queue |
 | `api` | Node 22, TypeScript, Fastify 5, Prisma 6, zod, argon2id (`@node-rs/argon2`), kafkajs, vitest | 3000 | schema and migrations, auth, REST, WebSocket, validation of every game action |
 | `jobs` | Go 1.26, `pgx/v5`, `franz-go` | none | geo processing, match start, turn close, **battle resolution** |
@@ -22,8 +22,8 @@ This file is the contract between the three services. Game rules live in `../../
 
 Each service ships a `.env.example` that documents its own variables.
 
-- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`, `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (720), `COOKIE_SECURE` (false; true in production), `TRUST_PROXY` (false; true behind the web proxy), `LOGIN_RATE_MAX` (10), `LOGIN_RATE_WINDOW_SEC` (300), `REGISTER_RATE_MAX` (10), `REGISTER_RATE_WINDOW_SEC` (3600); seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
-- `jobs`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC`, `KAFKA_GROUP_ID` (default `gioco-jobs`), `UPLOAD_DIR`, `JOBS_POLL_MS` (1000), `JOBS_WORKERS` (4), `JOBS_MAX_ATTEMPTS` (5), `JOBS_STALE_AFTER_SEC` (300); tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
+- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`, `UPLOAD_MAX_MB` (300; the web proxy has the same limit in `nginx.conf`), `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (720), `COOKIE_SECURE` (false; true in production), `TRUST_PROXY` (false; true behind the web proxy), `LOGIN_RATE_MAX` (10), `LOGIN_RATE_WINDOW_SEC` (300), `REGISTER_RATE_MAX` (10), `REGISTER_RATE_WINDOW_SEC` (3600); seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
+- `jobs`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC`, `KAFKA_GROUP_ID` (default `gioco-jobs`), `UPLOAD_DIR`, `JOBS_POLL_MS` (1000), `JOBS_WORKERS` (4), `JOBS_MAX_ATTEMPTS` (5), `JOBS_STALE_AFTER_SEC` (300), `GEO_SIMPLIFY_TOLERANCE_M` (50), `GEO_ADJACENCY_GAP_M` (5), `GEO_ADJACENCY_MIN_BORDER_M` (50); tests: `GEO_ITALY_FILE` (path of a GeoJSON with every Italian municipality, enables the whole-country test), `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
 - `web`: `API_PROXY_TARGET` (dev server only).
 - root `.env` (read by compose): `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, optional `KAFKA_BATTLE_TOPIC`, `KAFKA_BATTLE_PARTITIONS` (6).
 
@@ -33,11 +33,11 @@ There are two channels from `api` to `jobs`, and one back.
 
 ### Job table (scheduled and one-off work)
 
-- Table `Job` (see schema). `api` inserts rows (`src/queue/jobs.ts`), inside the same transaction as the change that needs the job when there is one. `jobs` claims them with `UPDATE ... WHERE id = (SELECT ... WHERE status='PENDING' AND "runAt" <= now ORDER BY "runAt" FOR UPDATE SKIP LOCKED LIMIT 1)`, sets `RUNNING`, then `DONE` or, after `JOBS_MAX_ATTEMPTS`, `FAILED` with `lastError`. Failed attempts are retried with backoff (5s, 10s, 20s… up to 5 min) by pushing `runAt` forward. A job `RUNNING` for longer than `JOBS_STALE_AFTER_SEC` is put back in the queue.
+- Table `Job` (see schema). `api` inserts rows (`src/queue/jobs.ts`), inside the same transaction as the change that needs the job when there is one. `jobs` claims them with `UPDATE ... WHERE id = (SELECT ... WHERE status='PENDING' AND "runAt" <= now ORDER BY "runAt" FOR UPDATE SKIP LOCKED LIMIT 1)`, sets `RUNNING`, then `DONE` or, after `JOBS_MAX_ATTEMPTS`, `FAILED` with `lastError`. Failed attempts are retried with backoff (5s, 10s, 20s… up to 5 min) by pushing `runAt` forward. While a handler runs, the worker renews `lockedAt`; a job `RUNNING` whose claim is older than `JOBS_STALE_AFTER_SEC` belonged to a worker that died and is put back in the queue.
 - `Job.dedupeKey` is unique: enqueueing the same key twice keeps one job (for example `turn.close:<matchId>:<turn>`).
 - Job types and payloads:
   - `system.ping` `{ "sentAt": string }` sent by `api` at startup; `jobs` answers with the `system.pong` notification
-  - `geo.process` `{ "uploadId": string }` (M3)
+  - `geo.process` `{ "uploadId": string }` enqueued in the transaction that records the upload
   - `match.start` `{ "matchId": string }` scheduled at `Match.startAt` (M5)
   - `turn.close` `{ "matchId": string, "turn": number }` scheduled at `Match.turnEndsAt` (M6)
 - Every job must be idempotent: `turn.close` for a turn that is not the match's `currentTurn` is a no-op; all its effects happen in one transaction that also advances `currentTurn`.
@@ -61,6 +61,20 @@ There are two channels from `api` to `jobs`, and one back.
 
 - `GET /api/health` → `{status:"ok"}`: the process is up (used by the compose healthcheck).
 - `GET /api/health/ready` → `{status, database, jobs:{lastPongAt}, battleQueue}`; 503 when the database does not answer. `jobs.lastPongAt` is the time of the last reply to a ping, `battleQueue` whether the Kafka producer is connected.
+
+## Geographic data
+
+- **Folders**: `GeoArea` is a tree. A root is a geographic area (Italy, France…), its descendants are the folders that split it. Names are unique among siblings, ignoring case. Deleting a folder deletes everything inside it (folders, uploads, files on disk, municipalities, their adjacencies) and is refused with `409 AREA_IN_USE` when a match uses any of it.
+- **Upload** (`api`): multipart, one file, at most `UPLOAD_MAX_MB`. Accepted extensions `.kml`, `.json`, `.geojson`; the first bytes must look like XML or like a JSON object. The file is streamed to `UPLOAD_DIR/<uploadId>.<kml|geojson>`; `GeoUpload.storagePath` holds that file name only, so `api` and `jobs` each resolve it against their own `UPLOAD_DIR`.
+- **Processing** (`jobs`, `geo.process`), all in one transaction, so a refused file leaves nothing behind:
+  1. Parse in Go (`internal/geo`), streaming, into one internal form: name, optional official code, GeoJSON MultiPolygon in WGS84. GeoJSON must be a `FeatureCollection` of `Polygon`/`MultiPolygon` features; KML contributes its `Placemark`s with `Polygon` or `MultiGeometry`. Name and code are read from the first matching property, ignoring case (`name, nome, comune, denominazione, com_name`; `com_istat_code, pro_com_t, pro_com, cod_istat, istat, code`); in KML the name is `<name>`. One invalid feature refuses the whole file.
+  2. Refuse the file when a municipality with the same code already exists in the same geographic area (root folder).
+  3. Insert each `GeoUnit`: `geom = ST_Multi(ST_CollectionExtract(ST_MakeValid(...), 3))`, centroid from `ST_PointOnSurface`, `areaKm2` from the geography area.
+  4. `geomSimple` with `ST_CoverageSimplify` over the whole upload: municipalities form a coverage, so a shared border is simplified once and stays shared (no gaps or overlaps on the map). Falls back to `ST_SimplifyPreserveTopology` per polygon if the data is not a clean coverage.
+  5. Adjacency between the new municipalities and with every municipality already in the same geographic area, so regions uploaded one by one join up. Two municipalities are adjacent when their borders run within `GEO_ADJACENCY_GAP_M` of each other for at least `GEO_ADJACENCY_MIN_BORDER_M`: a corner contact is not adjacency. Stored once and never recomputed during a match.
+- **Result**: `GeoUpload.status` `PENDING → PROCESSING → DONE | FAILED`, `progress` 0–100 (updated outside the transaction so the admin sees it), `unitCount`, `adjacencyCount`. On `FAILED`, `error` is a JSON string `{code, detail?, problems?: [{feature, name?, code}], total?, names?}` that the web interface translates. Codes: `INVALID_FILE`, `NOT_FEATURE_COLLECTION`, `FILE_MISSING`, `NO_UNITS`, `FEATURE_PROBLEMS` (per feature: `MISSING_NAME`, `NO_POLYGON`, `BAD_COORDINATES`, `RING_TOO_SHORT`, `DUPLICATE_CODE`), `ALREADY_LOADED`, `EMPTY_GEOMETRY`, `INTERNAL`. A failed upload is not retried: the admin uploads a corrected file.
+- **Manual adjacency**: the admin adds pairs the geometry cannot find (islands, exclaves) with `manual = true`; only manual pairs can be removed.
+- Measured on the openpolis dataset: 7,896 Italian municipalities, 36 MB, processed in about 20 seconds; 22,811 adjacencies; the only municipalities without neighbours are Campione d'Italia and thirteen island municipalities.
 
 ## Authentication and sessions
 
@@ -141,12 +155,15 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `POST /auth/logout` | user | revoke current session |
 | `GET /auth/me` | user | `{id,username,role}` |
 | `GET /stats/online` | none | `{online:number}` |
-| `GET /admin/stats` | admin | `{users,matchesRunning,online}` |
 | `GET /admin/sessions` / `DELETE /admin/sessions/:id` | admin | active sessions (`id, createdAt, lastSeenAt, expiresAt, ip, userAgent, user, connected, current`) and revoke |
-| `GET /admin/geo/areas` / `POST /admin/geo/areas` `{name,parentId?,kind}` / `DELETE /admin/geo/areas/:id` | admin | folder tree |
-| `POST /admin/geo/areas/:id/uploads` (multipart `file`, `.kml`, `.json`, `.geojson`) | admin | store file, create `GeoUpload`, enqueue `geo.process` |
-| `GET /admin/geo/uploads` / `GET /admin/geo/uploads/:id` | admin | status, progress, errors |
-| `POST /admin/geo/adjacency` `{aId,bId}` / `DELETE` same body | admin | manual adjacency between GeoUnits |
+| `GET /admin/stats` | admin | `{users, matchesRunning, online}`; `users` counts players, not the admin |
+| `GET /admin/geo/areas` | admin | flat list of the tree: `{id, name, parentId, uploadCount, unitCount}`, `unitCount` including descendants |
+| `POST /admin/geo/areas` `{name, parentId?}` / `PATCH /admin/geo/areas/:id` `{name}` / `DELETE /admin/geo/areas/:id` | admin | create, rename, delete; `409 AREA_NAME_TAKEN`, `409 AREA_IN_USE` |
+| `POST /admin/geo/areas/:id/uploads` (multipart `file`) | admin | store the file, create the `GeoUpload`, enqueue `geo.process`; `400 UNSUPPORTED_FILE`, `413 FILE_TOO_LARGE` |
+| `GET /admin/geo/uploads?areaId=` / `GET /admin/geo/uploads/:id` / `DELETE /admin/geo/uploads/:id` | admin | status, progress, errors; delete with its municipalities (`409 UPLOAD_IN_PROGRESS`, `409 UPLOAD_IN_USE`) |
+| `GET /admin/geo/units?q=&limit=` | admin | find municipalities by name (at least 2 characters) |
+| `GET /admin/geo/units/:id/neighbours` | admin | neighbours of a municipality, each with `manual` |
+| `GET /admin/geo/adjacency/manual` / `POST /admin/geo/adjacency` `{aId,bId}` / `DELETE` same body | admin | manual adjacencies; `409 ALREADY_ADJACENT` |
 | `GET /geo/areas` | user | tree with unit counts, for match creation |
 | `GET /matches?name=&size=&page=` | none | paged list; `size` in `free`,`s`,`m`,`l` |
 | `POST /matches` `{name,areaIds[],startAt,maxDays?,maxPlayers,turnHours,inviteCode?,config?}` | user | create (status `DRAFT`, then `OPEN` when the owner opens registrations), enqueue `match.start` |

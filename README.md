@@ -42,7 +42,7 @@ docker compose up -d db kafka kafka-init
 | Progetto | Preparazione | Avvio | Verifiche |
 |---|---|---|---|
 | `api` | `cp .env.example .env && pnpm install && pnpm db:deploy && pnpm seed` | `pnpm dev` | `pnpm lint && pnpm typecheck && pnpm test` |
-| `jobs` | `cp .env.example .env` | `set -a; . ./.env; set +a; go run ./cmd/jobs` | `go vet ./... && go test ./...` |
+| `jobs` | `cp .env.example .env`, con lo stesso `UPLOAD_DIR` di `api` (percorso assoluto) | `set -a; . ./.env; set +a; go run ./cmd/jobs` | `go vet ./... && go test ./...` |
 | `web` | `pnpm install` | `pnpm dev` (<http://localhost:5173>) | `pnpm lint && pnpm typecheck && pnpm test` |
 
 Gli script di `api` leggono da soli il file `.env`; `jobs` legge solo le variabili d'ambiente, per questo vanno esportate prima di lanciarlo.
@@ -54,6 +54,16 @@ I test che usano database e Kafka si attivano con `TEST_DATABASE_URL` e `TEST_KA
 ```sh
 cd api && DATABASE_URL=postgresql://gioco:gioco@localhost:5433/gioco_test pnpm db:deploy
 ```
+
+### Test con l'Italia intera
+
+Il test di `jobs` su tutti i comuni italiani si attiva indicando un GeoJSON con i loro confini, per esempio quello di [openpolis/geojson-italy](https://github.com/openpolis/geojson-italy) (`geojson/limits_IT_municipalities.geojson`):
+
+```sh
+cd jobs && GEO_ITALY_FILE=/percorso/comuni.geojson TEST_DATABASE_URL=postgresql://gioco:gioco@localhost:5433/gioco_test go test -run TestRealBoundariesOfItaly ./internal/geoprocess
+```
+
+Lo stesso file si può caricare dalla dashboard admin (<http://localhost:8080/admin>, scheda "Dati geografici") dopo aver creato l'area "Italia".
 
 ### Modifiche allo schema
 

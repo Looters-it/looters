@@ -2,7 +2,9 @@
 # Game at http://localhost:8080 (web proxies /api and /ws to the api).
 services:
   db:
-    image: postgis/postgis:16-3.4
+    # Multi-architecture build of the PostGIS image (the official one is amd64 only) with
+    # GEOS 3.13, needed by ST_CoverageSimplify to simplify borders without opening gaps.
+    image: imresamu/postgis:16-3.5-alpine
     environment:
       POSTGRES_USER: gioco
       POSTGRES_PASSWORD: gioco
