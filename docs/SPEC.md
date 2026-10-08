@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 8 (Capitale e vittoria) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
+Stato: **milestone 9 (Strutture) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
 
 ## Cosa esiste
 
@@ -209,6 +209,43 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Vale solo per gli imperi con almeno 3 territori.
 - La verifica avviene alla chiusura del turno, dopo il guadagno.
 
+### Strutture
+
+- Le strutture si scelgono da un catalogo e si piazzano su un proprio comune, che ne paga il costo con le sue risorse. Sono visibili a tutti.
+- Il catalogo è estendibile: una nuova struttura si aggiunge come voce del catalogo, senza modifiche al database né alla chiusura dei turni. L'interfaccia mostra qualunque struttura il catalogo contenga.
+- "Il valore di N turni" è N volte il guadagno per turno dell'impero al momento dell'acquisto, arrotondato per eccesso.
+- Non si può costruire su un comune coinvolto in uno scontro.
+
+| Struttura | Costo | Durata | Effetto |
+|---|---|---|---|
+| Blocco militare | 300 risorse | 5 turni (quello di costruzione compreso) | Il comune non può essere attaccato, e non può attaccare né partecipare a un attacco. |
+| Seconda capitale | valore di 20 turni | permanente | Se la capitale principale viene conquistata, l'impero non cade. |
+
+**Blocco militare**
+
+- Alla scadenza non è rinnovabile di seguito: devono passare 5 turni prima di piazzarne un altro sullo stesso comune.
+- È segnalato in mappa con i turni rimanenti.
+
+**Seconda capitale**
+
+- Una sola per impero, su un comune diverso dalla capitale.
+- Se la capitale principale viene conquistata, il giocatore perde quel comune ma resta in partita: la seconda capitale diventa la capitale e la riserva è consumata. Per averne un'altra va ricomprata.
+- Se è la seconda capitale a essere conquistata, si perdono solo il comune e la struttura: non passa al conquistatore.
+- Si può spostare su un altro proprio comune con il proprio intervallo di 3 turni, indipendente da quello della capitale principale. (Lo spostamento è disponibile via API; nell'interfaccia non c'è ancora il pulsante.)
+- In mappa è un anello nel colore dell'impero, distinto dal disco pieno della capitale.
+
+### Fusione di territori
+
+- Il giocatore unisce due o più propri comuni confinanti tra loro in un'unica **area**, a cui dà un nome. Costa il valore di mezzo turno per ogni comune incluso, pagato dalla somma delle loro risorse.
+- Un'area contiene al massimo 5 comuni, non si può dividere e può comprendere la capitale (che resta dov'è).
+- L'area si comporta come un solo territorio: le risorse si sommano, confina con tutto ciò con cui confinava almeno uno dei suoi comuni, attacca come un territorio solo (senza costo progressivo) e chi la conquista la prende intera.
+- Nei conteggi (classifica, guadagno, parità a fine partita) vale quanto i comuni che contiene.
+- Non si può unire un comune coinvolto in uno scontro. Le strutture dei comuni uniti passano all'area.
+- Un'area può far scattare l'allerta di accumulo come ogni altro territorio.
+- In mappa è contornata da un bordo spesso con il suo nome; si rinomina dalla scheda di uno dei suoi comuni.
+
+**Nell'interfaccia**: sotto "Il tuo impero" ci sono tre pagine con una barra comune: Risorse per comune, Unisci territori, Costruzioni. In "Unisci territori" e in "Costruzioni" i comuni si scelgono dall'elenco o toccandoli sulla mappa; quando l'operazione non è possibile il motivo è scritto.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
@@ -243,7 +280,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 
-Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct`, `surrenderRefundPct`, `capitalMoveEveryTurns` e le due dell'allerta di accumulo; le altre sono definite e validate in attesa delle rispettive milestone.
+Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct`, `surrenderRefundPct`, `capitalMoveEveryTurns`, le due dell'allerta di accumulo e le sei delle strutture; le altre sono definite e validate in attesa delle rispettive milestone.
 
 ### Vincoli garantiti dal database
 
@@ -275,6 +312,9 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Spostamento della seconda capitale**: esiste nelle API ma non ha ancora un pulsante nell'interfaccia.
+- **Blocco militare e fusione**: se si unisce un comune sotto blocco, il blocco passa all'intera area. Il brief non copre il caso.
+- **Geometria delle aree**: la calcola PostGIS su richiesta dentro `api`, non un job in `jobs` come indicato nel backlog (M9-05): le aree sono poche e piccole.
 - **Ultimo impero rimasto in una partita con scadenza**: la faccio finire subito, anche se il brief cita questa regola solo per le partite senza scadenza. Da confermare.
 - **Parità totale alla scadenza** (stesse risorse e stessi comuni): vince chi si è iscritto prima. Il brief non lo dice.
 - **Scontri annullati alla caduta di un impero**: il costo dell'attacco viene restituito per intero. Il brief non copre il caso.

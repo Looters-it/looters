@@ -189,6 +189,19 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - **Move the capital** (`POST /matches/:id/capital {territoryId, turn}`): to another own territory, at most once every `capitalMoveEveryTurns` turns (`Empire.lastCapitalMoveTurn`), and not while the old or the new capital is in a battle. `me.capitalMoveInTurns` says how many turns are left to wait. `CAPITAL_MOVED` is recorded.
 - **Accumulation alert** (`endgame.UpdateAccumulationAlerts`, at turn close after income): for empires with at least `accumAlertMinTerritories` territories, a territory holding more than `accumAlertPct`% of the empire's resources is noted (`aboveAlertAtLastClose`); if it was already noted at the previous close, `alert` is set. It clears at the first close below the threshold. `alert` is public in the state and carries no amount.
 
+## Structures and merged areas
+
+- **Catalogue** (`api/src/rules/structures.ts`): each `StructureDefinition` declares `type`, `cost(rules, turnValue)`, `durationTurns(rules)` (null = permanent), optional `cooldownTurns`, `maxPerEmpire`, `notOnCapital`, `moveEveryTurns`, and its `effects`. `registerStructure` adds one. **Adding a structure is adding an entry here** (plus its rule values in `rules/config.ts` and its texts in the web locale): no migration, no change in `jobs`, none in the battle rules.
+- **Effects, not types**: `NO_ATTACK_ON`, `NO_ATTACK_FROM`, `BACKUP_CAPITAL`. They are copied into `Structure.data.effects` when a structure is built, and that is all the rest of the game reads: the attack checks in `api`, the promotion of a second capital in `jobs`, the signs on the map in `web`. A structure of a type nobody knows, with known effects, works everywhere.
+- **Costs in turns**: `turnsToResources(n, turnValue) = ceil(n × turnValue)`, with `turnValue` the empire's income at the moment of the purchase. The cost is paid from the territory the structure stands on.
+- **Build** (`POST /matches/:id/structures {type, territoryId, turn}`): the territory is locked; `structureBlock` gives the first reason it cannot be built (`IN_BATTLE`, `ON_CAPITAL`, `ALREADY_HERE`, `ONE_PER_EMPIRE`, `COOLDOWN`, `NOT_ENOUGH_RESOURCES`), returned as `409 STRUCTURE_<reason>`. Built in turn T for N turns: `expiresTurn = T + N − 1`, `cooldownUntilTurn = expiresTurn + cooldown`; another of the same type can be built there from the turn after.
+- **Expiry** (`jobs`, turn close): `active = false` where `expiresTurn <= turn`, for every structure alike.
+- **Second capital**: when a capital is conquered, `endgame.CapitalLost` first looks for an active structure of the losing empire with `BACKUP_CAPITAL` on a territory it still holds: if there is one, that territory becomes the capital, the structure is used up, `CAPITAL_PROMOTED` is recorded and the empire survives. A conquered territory loses the structures on it. A fallen empire loses all of them. It moves with `POST /matches/:id/structures/:structureId/move`, at its own interval (`data.lastMoveTurn`), independent of the main capital's.
+- **Catalogue for a player** (`GET /matches/:id/structures/catalogue`): for each structure the cost now and, for each own territory, whether it can be built there and why not.
+- **Merge** (`POST /matches/:id/merge {territoryIds[], name, turn}`, preview at `/merge/preview`): own territories, at least two, none in a battle, at most `mergeMaxUnits` municipalities in all, connected through shared borders; cost `ceil(mergeCostTurns × turnValue)` per territory included, paid from the sum of their resources. One `Territory` row survives (the capital's if it is among them, so the capital stays), takes the `TerritoryUnit` rows and the structures of the others, the summed resources minus the cost, the summed weights, `isArea = true` and the chosen name; the other rows are deleted. Nothing else changes: adjacency, income and counts are all computed from municipalities, so an area borders what its municipalities border and counts for as many as it contains. Problems: `TOO_FEW`, `NOT_YOURS`, `IN_BATTLE`, `TOO_MANY`, `NOT_CONTIGUOUS`, `NOT_ENOUGH_RESOURCES` (`409 MERGE_<problem>`).
+- **Area outlines** (`GET /matches/:id/areas`): GeoJSON, one feature per area, geometry `ST_Union` of the simplified municipalities, with name and a point inside. The union is computed by PostGIS on request, in the api: areas are few and small, so no job is involved.
+- **State**: `structures: [{id, type, territoryId, empireId, effects, turnsLeft}]`, active ones, public.
+
 ## Game mechanics, precisely
 
 All amounts are integers; percentages round the cost up (`ceil`).
@@ -251,9 +264,11 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `POST /matches/:id/attacks` `{targetGeoUnitId, fromTerritoryIds[], turn}` | player | declare; `409 TARGET_IS_FREE`, `TARGET_IS_YOURS`, `TARGET_PROTECTED`, `TERRITORY_IN_BATTLE`, `NOT_ADJACENT`, `NOT_ENOUGH_RESOURCES`, `NOT_YOUR_TERRITORY`, `TURN_CHANGED` |
 | `POST /matches/:id/battles/:battleId/respond` `{action:"DEFEND"|"SURRENDER"}` | defender | `403 NOT_THE_DEFENDER`, `409 BATTLE_ANSWERED` |
 | `POST /matches/:id/capital` `{territoryId, turn}` | player | move the capital; `409 ALREADY_CAPITAL`, `CAPITAL_MOVED_RECENTLY`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY` |
-| `POST /matches/:id/merge` `{territoryIds[],name}` | player | |
-| `PATCH /matches/:id/territories/:tid` `{name}` | player | rename own area |
-| `POST /matches/:id/structures` `{type:string,territoryId}` (a key of the structure catalogue) | player | |
+| `POST /matches/:id/merge/preview` `{territoryIds[]}` / `POST /matches/:id/merge` `{territoryIds[], name, turn}` | player | cost and feasibility; merge into one area |
+| `GET /matches/:id/areas` | none | outlines of the merged areas, GeoJSON |
+| `PATCH /matches/:id/territories/:territoryId` `{name}` | player | rename an own area |
+| `GET /matches/:id/structures/catalogue` | player | what can be built, where, at what cost |
+| `POST /matches/:id/structures` `{type, territoryId, turn}` / `POST /matches/:id/structures/:structureId/move` `{territoryId, turn}` | player | build; move a movable structure |
 | `GET /matches/:id/board?type=&empireId=&before=` / `POST` `{text}` / `DELETE /matches/:id/board/:eventId` | read: any; write: player; delete: owner or admin | |
 | `GET /matches/:id/history` | any | `[{turn, events:[...]}]` |
 | `GET /matches/:id/history/:turn` | any | `{turn, ownership:{[geoUnitId]:empireId|null}}` |
