@@ -355,6 +355,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Backup** `[ASSUNZIONE]`: un backup al giorno, tenendo gli ultimi 14, salvati in una cartella della stessa macchina; la copia fuori sede e la cifratura dipendono da dove verrà ospitato il gioco e non sono impostate. Con un backup al giorno, un guasto può far perdere fino a un giorno di partita.
+
 - **Tracciamento degli errori** `[ASSUNZIONE]`: gli errori finiscono nei log strutturati dei container, con un campo `event` su cui cercare e impostare allarmi; non è collegato nessun servizio esterno (Sentry o simili) né un raccoglitore di log, che dipendono da dove verrà ospitato il gioco.
 
 - **Storico, scelte da confermare** `[ASSUNZIONE]`: lo storico è pubblico (anche per ospiti); i messaggi dei giocatori non ne fanno parte; la revisione mostra solo la proprietà dei comuni, non capitali, aree e strutture di allora; una partita con moltissimi turni li elenca tutti, senza paginazione.

@@ -105,6 +105,29 @@ services:
     depends_on: [api]
     ports: ["8080:8080"]
 
+  # Backups of the database and of the uploaded geo files, in ./backups. Not part of a
+  # plain `up`: `docker compose --profile backup up -d backup` takes one every
+  # BACKUP_INTERVAL_HOURS; scripts/backup.sh and scripts/restore.sh use it for one-off runs.
+  backup:
+    profiles: [backup]
+    image: imresamu/postgis:16-3.5-alpine
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: gioco
+      PGPASSWORD: gioco
+      PGDATABASE: gioco
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./backups:/backups
+      - uploads:/data/uploads
+      - ./db/backup/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["/usr/local/bin/backup.sh"]
+    command: ["loop"]
+
 volumes:
   dbdata:
   kafkadata:

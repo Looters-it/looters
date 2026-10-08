@@ -78,6 +78,27 @@ Quando `api` aggiunge una chiave alla configurazione di partita, va aggiunto il 
 ./scripts/sync-jobs-fixtures.sh --check  # fallisce se una copia è rimasta indietro
 ```
 
+## Backup e ripristino
+
+Un backup è una coppia di file in `./backups` con lo stesso orario (UTC): `gioco-<data>-<ora>.dump` (il database, formato `pg_dump -Fc`) e `gioco-<data>-<ora>.uploads.tgz` (i file geografici caricati dall'admin). Insieme bastano a ricostruire tutto: Kafka non va salvato, perché uno scontro la cui richiesta va persa viene comunque risolto alla chiusura del turno.
+
+| Cosa | Comando |
+| --- | --- |
+| Un backup adesso | `./scripts/backup.sh` |
+| Backup periodici | `docker compose --profile backup up -d backup` (ogni `BACKUP_INTERVAL_HOURS`, 24 se non indicato; restano gli ultimi `BACKUP_KEEP`, 14) |
+| Controllare che un backup si ripristini, senza toccare nulla | `./scripts/restore.sh --verify latest` |
+| Ripristinare | `./scripts/restore.sh latest` oppure `./scripts/restore.sh gioco-<data>-<ora>.dump` |
+
+**Cosa fa il ripristino.** Chiede conferma, ferma `api` e `jobs`, ricostruisce il backup in un database nuovo e solo se riesce lo mette al posto di quello in uso; poi rimette i file caricati e riavvia i servizi. Il database di prima **non viene cancellato**: resta come `gioco_before_restore_<data>`, e si elimina a mano quando si è sicuri:
+
+```sh
+docker compose exec db psql -U gioco -d postgres -c 'DROP DATABASE "gioco_before_restore_<data>"'
+```
+
+**Dopo un ripristino** il gioco riparte dallo stato del backup: le mosse fatte dopo sono perse, le sessioni dei giocatori restano valide e i turni scaduti nel frattempo vengono chiusi da `jobs` appena riparte.
+
+**Da ricordare.** `./backups` sta sulla stessa macchina del database: va copiata altrove (un altro server, uno storage a oggetti) con lo strumento che si preferisce, altrimenti non protegge dalla perdita del disco. Conviene lanciare `--verify` ogni tanto: un backup mai provato non è un backup. Su una macchina nuova: `docker compose up -d db`, copiare i due file in `./backups`, poi `./scripts/restore.sh <file>`.
+
 ### Integrazione continua
 
 Ogni repository ha il suo `.github/workflows/ci.yml` (GitHub Actions), che parte a ogni push su `main` e a ogni pull request:
