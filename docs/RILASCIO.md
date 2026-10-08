@@ -12,10 +12,10 @@ Come mettere il gioco in produzione su un server e come aggiornarlo. Vale per un
 ## Primo avvio
 
 ```sh
-git clone <repository radice> looters && cd looters
-git clone <repository api> api
-git clone <repository jobs> jobs
-git clone <repository web> web
+git clone https://github.com/Looters-it/looters.git && cd looters
+git clone https://github.com/Looters-it/looters-api.git api
+git clone https://github.com/Looters-it/looters-jobs.git jobs
+git clone https://github.com/Looters-it/looters-web.git web
 
 cp .env.prod.example .env
 # compilare .env: DOMAIN, POSTGRES_PASSWORD, ADMIN_PASSWORD, ADMIN_EMAIL

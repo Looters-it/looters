@@ -1,6 +1,15 @@
 # Looters
 
-Cartella radice del progetto: contiene i tre repository dei servizi, il `docker-compose.yml` e la documentazione condivisa.
+Gioco di conquista multigiocatore in rete sui comuni italiani: ogni giocatore guida un impero, annette comuni, accumula risorse e attacca i vicini, a turni.
+
+Questo è il repository radice: contiene il `docker-compose.yml`, la documentazione condivisa e gli script di gestione. I tre servizi sono repository separati, da clonare **dentro** questa cartella:
+
+```sh
+git clone https://github.com/Looters-it/looters.git && cd looters
+git clone https://github.com/Looters-it/looters-api.git api
+git clone https://github.com/Looters-it/looters-jobs.git jobs
+git clone https://github.com/Looters-it/looters-web.git web
+```
 
 | Cartella | Contenuto |
 |---|---|
@@ -11,7 +20,6 @@ Cartella radice del progetto: contiene i tre repository dei servizi, il `docker-
 | `docs/ARCHITECTURE.md` | Contratto tecnico tra i servizi. |
 | `docs/SPEC.md` | Regole di gioco effettivamente implementate. |
 
-Regole di progetto e attività sono nella cartella superiore: `PROMPT.md` e `BACKLOG.md`.
 
 ## Avvio
 
