@@ -212,6 +212,17 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
 
+## Alliances
+
+- `Alliance` + `AllianceMember` (primary key `empireId`: one alliance per empire, enforced by the database) + `AllianceInvite` + `AllianceMessage`. Code in `api/src/modules/game/alliances.ts`; `areAllies(tx, a, b)` and `allianceOf(tx, empireId)` are the two questions everything else asks.
+- A proposal is an `AllianceInvite` carrying the proposer's alliance at the time (`allianceId`, null for a new one). Accepting checks, with both empire rows locked in id order, that the proposer is still where they were, that there is room (`allianceMaxMembers`) and that the newcomer has no open battle with any member; it then creates the alliance or adds the member and deletes the other pending invites of the two.
+- Leaving sets `AllianceMember.leavesAtTurn = currentTurn + allianceLeaveNoticeTurns`. Nothing else changes until `jobs` closes that turn: `endgame.ApplyAllianceExits` removes the members whose turn has come, records `ALLIANCE_LEFT` and dissolves alliances left with fewer than two members. The fall of an empire removes its membership the same way.
+- The attack ban is in `BattleService` (`TARGET_IS_ALLY`), checked inside the declaring transaction; the unit card returns no `attack` block for an ally.
+- Visibility: `MatchService.state` and the unit card return `resources` for the viewer's own territories and their allies', `null` otherwise. `alliances` is in the state for everyone; `invites` only for the two empires involved.
+- Transfer: one transaction locking both territories in id order, refusing a territory with a `BattleLock`, with a conditional decrement on the source.
+- Chat: `AllianceMessage` rows read and written only by current members (`409 NOT_IN_ALLIANCE` for any other player); length capped by `boardMaxChars`. The web client keeps it under the `['matches','unit',matchId,…]` query key so `match.update` refreshes it.
+- Web: `features/game/AlliancePage.tsx`; the map views are pure functions in `features/game/map-views.ts` (`colorsFor(state, view, tones)`), fed to the same `colors` prop of `GameMap`.
+
 ## Game mechanics, precisely
 
 All amounts are integers; percentages round the cost up (`ceil`).
@@ -280,6 +291,7 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `GET /matches/:id/structures/catalogue` | player | what can be built, where, at what cost |
 | `POST /matches/:id/structures` `{type, territoryId, turn}` / `POST /matches/:id/structures/:structureId/move` `{territoryId, turn}` | player | build; move a movable structure |
 | `GET /matches/:id/board?kind=&empireId=&before=&limit=` / `POST` `{text}` / `DELETE /matches/:id/board/:eventId` | read: any; write: player; delete: owner or admin | `400 MESSAGE_TOO_LONG`, `429 RATE_LIMITED` |
+| `POST /matches/:id/alliances/invites` `{toEmpireId}` · `POST …/invites/:inviteId/{accept\|decline\|withdraw}` · `POST …/alliances/leave` · `POST …/alliances/transfer` `{fromTerritoryId, toTerritoryId, amount, turn}` · `GET\|POST …/alliances/chat` `{text}` | player | Alliances: all return the match state, the chat returns its messages newest first |
 | `GET /matches/:id/history` | any | `[{turn, events:[...]}]` |
 | `GET /matches/:id/history/:turn` | any | `{turn, ownership:{[geoUnitId]:empireId|null}}` |
 
@@ -297,6 +309,8 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
                   battleId: string | null /* targets for everyone, sources for their owner */,
                   alert: boolean }],
   battles: [/* see Battles */],
+  alliances: [{ id, members: [{ empireId, leavesAtTurn: number | null }] }],   // public
+  invites: [{ id, fromEmpireId, toEmpireId }],                               // the viewer's only
   online: { connected: number, total: number }
 }
 ```

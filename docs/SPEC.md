@@ -252,13 +252,28 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - **Comunicazioni degli imperi**: messaggi di solo testo scritti dai giocatori a nome del proprio impero, mostrati con nome e stemma. Al massimo 500 caratteri, e un impero deve aspettare 20 secondi tra un messaggio e l'altro.
 - Può scrivere solo chi ha un impero ancora in gioco, finché la partita non è finita. Ospiti, spettatori e imperi caduti leggono soltanto.
 - Chi ha creato la partita e l'admin di piattaforma possono rimuovere i messaggi dei giocatori. Gli annunci automatici non si possono rimuovere.
-- **Annunci automatici**: creazione di un impero, annessione di un comune, esito di un conflitto (conquista, difesa riuscita o resa), creazione e rinomina di un'area, caduta di un impero, costruzione di una seconda capitale, spostamento della capitale, promozione della seconda capitale, inizio e fine della partita. Le alleanze si aggiungono con la milestone 11.
+- **Annunci automatici**: creazione di un impero, annessione di un comune, esito di un conflitto (conquista, difesa riuscita o resa), creazione e rinomina di un'area, caduta di un impero, costruzione di una seconda capitale, spostamento della capitale, promozione della seconda capitale, inizio e fine della partita. Anche la nascita di un'alleanza, l'ingresso di un impero e l'uscita effettiva sono annunciati.
 - L'attacco viene annunciato solo a conflitto risolto. Blocchi militari e allerte di accumulo non vengono annunciati: si vedono in mappa.
 - Gli annunci non contengono mai quantità di risorse: solo nomi ed esiti.
 - Un annuncio che cita un comune ha un collegamento che centra la mappa su quel comune e lo seleziona.
 - La bacheca si filtra per tipo (comunicazioni, conflitti, annessioni, imperi, capitali, aree, alleanze, partita) e per impero.
 - Si aggiorna da sola quando succede qualcosa nella partita.
 - **Nell'interfaccia** è un pannello in basso a sinistra sopra la mappa: chiuso mostra l'ultimo annuncio e quanti sono nuovi, aperto si espande verso l'alto con i filtri, l'elenco e il campo per scrivere. Su telefono è la terza scheda in fondo.
+
+### Alleanze
+
+- Un impero propone un'alleanza a un altro impero in gioco; chi la riceve accetta o rifiuta, chi l'ha fatta può ritirarla. Chi è già in un'alleanza, proponendo, invita il terzo nella propria: basta l'accordo di chi invita e di chi è invitato.
+- Un impero fa parte di **una sola alleanza**, che ha al massimo **3 membri** (configurabile). Non si può invitare un impero che è già in un'alleanza, né accettare se nel frattempo l'alleanza si è riempita o chi ha proposto ne è uscito o ha cambiato alleanza.
+- Non ci si può alleare con qualcuno con cui è in corso uno scontro: prima lo scontro si chiude.
+- **Gli alleati non possono attaccarsi.** Il divieto vale dal momento dell'accettazione fino all'uscita effettiva.
+- **Uscita**: è unilaterale e ha effetto alla **fine del turno successivo** a quello in cui viene annunciata (preavviso configurabile). Fino ad allora chi esce resta alleato a tutti gli effetti: non può attaccare né essere attaccato dagli alleati, vede e fa vedere le risorse. Chi ha annunciato l'uscita non può invitare altri. L'annuncio è visibile a tutti nella scheda dell'alleanza e non si ritira.
+- Un'alleanza rimasta con un solo membro, per un'uscita o per la caduta di un impero, si scioglie.
+- **Risorse visibili**: gli alleati vedono le risorse dei territori l'uno dell'altro, in mappa, nelle schede dei comuni e nella vista "Risorse". Dopo l'uscita effettiva tornano nascoste.
+- **Trasferimenti**: un impero può mandare risorse da un proprio territorio a un territorio di un alleato, subito, senza limite di distanza. Non si può mandare da o verso un territorio coinvolto in uno scontro: l'aiuto tra alleati è solo preventivo.
+- **Chat di alleanza**: privata, la leggono e ci scrivono solo i membri attuali; chi entra legge anche i messaggi precedenti, chi esce non la vede più.
+- **L'alleanza non vince**: il vincitore è sempre un solo impero. Se alla fine restano solo imperi alleati, la partita continua fino alla scadenza o finché uno conquista le capitali degli altri, dopo essere uscito.
+- Chi è alleato con chi è **pubblico**: lo vedono tutti, anche ospiti e spettatori. Le proposte in attesa le vedono solo chi le ha fatte e chi le ha ricevute.
+- **Nell'interfaccia**: la voce "Alleanza" del menu dell'impero raccoglie membri, proposte, invito, trasferimento, chat e uscita (con conferma). Sulla mappa un selettore in alto a sinistra cambia vista: **Politica** (colore dell'impero), **Alleanze** (un colore per alleanza, neutro per chi non ne ha) e **Risorse** (tono più scuro dove ci sono più risorse, solo sui territori propri e degli alleati).
 
 ### Interfaccia di partita
 
@@ -326,6 +341,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Alleanze, scelte da confermare** `[ASSUNZIONE]`: per far entrare un terzo impero basta l'invito di un solo membro, senza il consenso dell'altro; l'annuncio di uscita non si può ritirare; i trasferimenti tra alleati non hanno limite di quantità né di distanza; alleati e proposte accettate sono pubblici, mentre le proposte in attesa sono private; il colore di un'alleanza in mappa è quello del suo primo membro.
 
 - **Spostamento della seconda capitale**: esiste nelle API ma non ha ancora un pulsante nell'interfaccia.
 - **Blocco militare e fusione**: se si unisce un comune sotto blocco, il blocco passa all'intera area. Il brief non copre il caso.
