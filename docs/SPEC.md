@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 4 (Mappa) completata.** Nessuna azione di gioco è ancora disponibile.
+Stato: **milestone 5 (Partite) completata.** Si può creare una partita, iscriversi e vederla partire; annessioni, turni e scontri non esistono ancora.
 
 ## Cosa esiste
 
@@ -70,11 +70,53 @@ Verifica sui confini reali di tutti i comuni italiani (7.896): elaborati in circ
 - A zoom basso compaiono i nomi degli imperi, a zoom alto i nomi dei comuni; quando due nomi si sovrappongono resta quello del comune o dell'impero più grande.
 - Toccando un comune lo si seleziona: il suo confine viene marcato e compare un riquadro ancorato al comune. Su telefono il riquadro è una scheda che sale dal basso.
 - Nelle mappe inserite in una pagina (homepage, anteprima admin) un dito scorre la pagina e due dita muovono la mappa.
-- **Homepage**: mostra la mappa dell'area geografica più grande, con tutti i comuni liberi, finché non esistono partite.
+- **Homepage**: mostra la mappa dell'area geografica più grande, con tutti i comuni liberi. Non è ancora la "mappa in diretta" di una partita.
 - **Anteprima admin**: nella scheda "Dati geografici" ogni cartella con comuni ha la sua mappa. Toccando un comune si evidenziano i suoi confinanti, per controllare le adiacenze a vista. Il pulsante "Imperi di prova" colora una partita fittizia con cento imperi, per valutare come regge la mappa.
 - I cambi di proprietà aggiornano solo i comuni interessati, senza ricaricare la mappa.
 
 Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di ogni impero, gli stemmi accanto ai nomi, le icone di stato (capitale, protetto, sotto attacco, blocco, allerta).
+
+### Partite
+
+**Creazione**
+
+- Ogni utente registrato può creare una partita scegliendo: nome, area di gioco (un'area o una cartella con dei comuni), data e ora di inizio, giocatori massimi (da 2 a 120, predefinito 100), durata del turno in ore (predefinita 24), durata massima in giorni (facoltativa: senza, la partita non ha scadenza), codice d'invito (facoltativo: senza, la partita è pubblica) e tutte le regole di gioco, che partono dai valori predefiniti.
+- La partita nasce come **bozza**, visibile solo a chi l'ha creata, che può modificarla in tutto o eliminarla.
+- Con "Apri le iscrizioni" la bozza diventa pubblica. In quel momento vengono creati i territori di gioco, uno per comune, ciascuno con la sua dotazione nascosta. Da lì in poi mappa, durata del turno e regole non si possono più cambiare; restano modificabili nome, data di inizio, durata massima, giocatori massimi (non sotto il numero degli iscritti) e codice d'invito.
+- Chi crea la partita partecipa come gli altri: si iscrive e sceglie il suo comune.
+
+**Dotazione nascosta dei comuni**
+
+- Ogni comune riceve una quantità casuale di risorse tra 10 e 100: i valori centrali sono i più frequenti (oltre metà dei comuni sta tra 40 e 70) e quelli da 80 in su sono rari (circa l'8%). Limiti e forma sono regole della partita.
+- Il valore viene estratto sul server e non arriva mai a nessun giocatore finché il comune è libero.
+
+**Iscrizione**
+
+- Ci si iscrive scegliendo sulla mappa un comune libero e dando all'impero nome, colore, stemma e motto (facoltativo).
+- Il comune scelto diventa la **capitale**. Vi vengono allocate le risorse iniziali (200) più la dotazione nascosta del comune, che in quel momento viene svelata al solo proprietario.
+- Se due giocatori scelgono lo stesso comune, lo ottiene chi arriva prima; l'altro riceve un errore, non perde nulla e può scegliere di nuovo.
+- In una partita nome (senza distinguere maiuscole e minuscole) e colore di un impero sono univoci; lo stemma può ripetersi. Ogni utente ha un solo impero per partita.
+- I colori sono 120 e gli stemmi dieci (torre, stella, croce, corona, scudo, rombo, bande, scacchi, monte, luna), tutti predefiniti.
+- Se la partita ha un codice d'invito, serve per iscriversi; lo vede solo chi ha creato la partita.
+- Nome, colore, stemma e motto si possono cambiare solo prima dell'inizio.
+- Le iscrizioni restano aperte anche a partita iniziata, finché ci sono posti, a meno che la regola "si può entrare anche a partita iniziata" sia disattivata.
+
+**Avvio**
+
+- All'ora di inizio la partita parte da sola: passa al turno 1 e la fine del turno viene calcolata dall'ora di inizio prevista.
+- Le capitali scelte prima dell'inizio sono protette fino alla fine del turno 1. Chi entra a partita iniziata è protetto fino alla fine del turno in cui entra.
+- Servono almeno 2 imperi (regola della partita). Con meno, all'ora di inizio non succede nulla: la partita resta con le iscrizioni aperte e chi l'ha creata può fissare una nuova data.
+- Una partita iniziata resta ferma al turno 1: la chiusura dei turni arriva con la milestone 6.
+
+**Cosa vede chi**
+
+- Tutti, anche gli ospiti, vedono le partite con iscrizioni aperte o in corso, gli imperi, i loro comuni sulla mappa e le regole.
+- Le risorse di un territorio le vede solo il suo proprietario. Per tutti gli altri sono "nascoste".
+
+**Homepage**
+
+- "Partite attive" elenca le partite con iscrizioni aperte o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
+- "Le tue partite" elenca quelle che hai creato (bozze comprese) o a cui partecipi.
 
 ### Configurazione delle regole di partita
 
@@ -82,6 +124,8 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 
 | Chiave | Default | Regola (PROMPT) |
 |---|---|---|
+| `minPlayersToStart` | 2 | imperi minimi perché la partita parta (scelta provvisoria) |
+| `lateJoin` | sì | ci si può iscrivere anche a partita iniziata (scelta provvisoria) |
 | `startResources` | 200 | risorse iniziali di ogni giocatore (§2.4) |
 | `hiddenMin`, `hiddenMax` | 10, 100 | limiti della dotazione nascosta dei comuni (§2.4) |
 | `hiddenMean`, `hiddenSd` | 55, 17 | forma della distribuzione della dotazione (§2.4) |
@@ -98,7 +142,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 
-Queste chiavi sono definite e validate, ma nessuna regola le usa ancora.
+Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources` e le quattro della dotazione nascosta; le altre sono definite e validate in attesa delle rispettive milestone.
 
 ### Vincoli garantiti dal database
 
@@ -108,6 +152,7 @@ Queste chiavi sono definite e validate, ma nessuna regola le usa ancora.
 - In una partita nome e colore di un impero sono univoci, e ogni utente ha un solo impero.
 - Un comune appartiene a un solo territorio di gioco per partita.
 - Una partita nasce nello stato bozza.
+- Un comune libero viene assegnato con un aggiornamento condizionato: due iscrizioni contemporanee sullo stesso comune non possono riuscire entrambe.
 
 ## Decisioni prese in corso d'opera
 
@@ -123,10 +168,17 @@ Queste chiavi sono definite e validate, ma nessuna regola le usa ancora.
 | 2026-10-07 | Un file con elementi non validi viene rifiutato per intero, non caricato a metà. |
 | 2026-10-07 | Due comuni che si toccano in un solo punto non sono confinanti. |
 | 2026-10-07 | La dashboard admin è stata costruita senza un mockup approvato (M0-09 è ancora aperta). |
-| 2026-10-07 | La dotazione nascosta dei comuni viene estratta alla creazione della partita, non all'avvio. |
+| 2026-10-08 | La dotazione nascosta dei comuni viene estratta all'apertura delle iscrizioni (quando la bozza diventa pubblica), prima che chiunque possa iscriversi. |
+| 2026-10-08 | La creazione segue gli stati del brief (bozza, poi iscrizioni aperte): chi crea la partita si iscrive dalla pagina della partita, non in un unico passaggio come nel prototipo. |
+| 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
 
+- **Giocatori minimi per partire**: il brief non dice cosa succede se all'ora di inizio c'è un solo iscritto o nessuno. Ho scelto: servono almeno 2 imperi, altrimenti la partita aspetta una nuova data. Da confermare.
+- **Iscrizioni a partita iniziata**: il brief non lo dice in modo esplicito. Ho scelto di permetterle, con una regola per disattivarle. Da confermare.
+- **Abbandono**: un giocatore iscritto non può ritirarsi né cambiare comune di partenza prima dell'inizio. Il brief non lo prevede.
+- **Palette degli imperi**: i 120 colori sono generati (24 tinte in 5 toni) per garantire l'unicità fino a 120 giocatori, ma molti si somigliano sulla mappa. Resta da disegnare la palette dedicata (M0-11).
+- **Durata del turno minima**: l'interfaccia accetta frazioni di ora (fino a 0,01, circa 36 secondi) per fare partite di prova veloci. Da decidere se limitarla in produzione.
 - **Mappa di sfondo**: in sviluppo si usano le tile pubbliche di OpenStreetMap, che non sono ammesse per un sito in produzione. Prima del rilascio serve un fornitore di tile (o un server proprio).
 - **Prova su telefono**: la mappa è stata verificata su computer con l'Italia intera; su un telefono reale non è ancora stata provata.
 - **Colori degli imperi di prova**: derivano dalle tre palette del tema e oltre una dozzina di imperi si confondono, come già annotato per la palette dedicata.

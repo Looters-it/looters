@@ -38,7 +38,7 @@ There are two channels from `api` to `jobs`, and one back.
 - Job types and payloads:
   - `system.ping` `{ "sentAt": string }` sent by `api` at startup; `jobs` answers with the `system.pong` notification
   - `geo.process` `{ "uploadId": string }` enqueued in the transaction that records the upload
-  - `match.start` `{ "matchId": string }` scheduled at `Match.startAt` (M5)
+  - `match.start` `{ "matchId": string }` scheduled at `Match.startAt` when registrations open, and again (dedupe key `match.start:<id>:<startAt>`) whenever the owner moves the date; a job that finds the date moved later does nothing
   - `turn.close` `{ "matchId": string, "turn": number }` scheduled at `Match.turnEndsAt` (M6)
 - Every job must be idempotent: `turn.close` for a turn that is not the match's `currentTurn` is a no-op; all its effects happen in one transaction that also advances `currentTurn`.
 
@@ -118,6 +118,7 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
 
 ```json
 {
+  "minPlayersToStart": 2, "lateJoin": true,
   "startResources": 200,
   "hiddenMin": 10, "hiddenMax": 100, "hiddenMean": 55, "hiddenSd": 17,
   "incomeBase": 50, "incomePerUnit": 10,
@@ -135,6 +136,17 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
 ```
 
 "Value of one turn" = `incomeBase + incomePerUnit * (number of GeoUnits the empire controls)`.
+
+## Matches
+
+- **Life cycle**: `DRAFT → OPEN → RUNNING → FINISHED`. A draft exists only for its owner (404 for everyone else) and is fully editable. `POST /matches/:id/open` turns it `OPEN`: from then on map, turn length and rules are locked; name, start, maximum days, maximum players and invite code can still change.
+- **Territories** are created when registrations open, in the same transaction: one `Territory` per municipality of the chosen folders (each municipality once, even if folders overlap), each with its hidden starting resources. With 7,896 municipalities it takes under a second.
+- **Hidden starting resources** (`src/rules/hidden-resources.ts`): a normal(`hiddenMean`, `hiddenSd`) drawn with the system's secure generator, rejected and redrawn outside [`hiddenMin`, `hiddenMax`], rounded. They sit in `Territory.resources` and are never sent to a client while the territory is free: `GET /matches/:id/state` lists owned territories only.
+- **Start** (`jobs`, `match.start`): if the match is `OPEN`, its `startAt` has come and it has at least `minPlayersToStart` active empires, one transaction sets `RUNNING`, `currentTurn = 1`, `turnEndsAt = startAt + turnHours` (counted from the scheduled start, not from when the job ran), protects every capital through turn 1, records `MATCH_STARTED` and notifies `match.started`. Otherwise it does nothing: a match with too few players stays `OPEN` until the owner sets a new date. Scheduling `turn.close` arrives with M6.
+- **Join** (`POST /matches/:id/join`): allowed while `OPEN`, and while `RUNNING` if `lateJoin`. The match row is locked `FOR UPDATE`, so joins of one match run one at a time: invite code, one empire per user, free seats, name (ignoring case) and colour unique in the match. The territory is taken with a conditional update (`ownerEmpireId IS NULL`): of two players choosing the same municipality the second gets `409 TERRITORY_TAKEN` and nothing of theirs is saved. The territory becomes the capital, gains `startResources` on top of its hidden resources, and is protected until the end of the current turn (turn 1 before the start).
+- **Empire identity**: name 3–40 characters, colour from `EMPIRE_COLORS` (120 generated colours, also the upper limit of players per match), emblem from `EMPIRE_EMBLEMS` (ten drawings), motto up to 80 characters. Changeable only while the match is `OPEN`.
+- **Viewer filter** (`MatchService.state`): `resources` is the number only on the viewer's own territories and `null` on everyone else's; free territories are absent. Events carry names and ids, never amounts.
+- **Map of a match**: `GET /matches/:id/map`, `/units` and `/tiles/...` mirror the folder routes, restricted to the match's municipalities; the set never changes after opening, so tiles are immutable.
 
 ## Game mechanics, precisely
 
@@ -178,11 +190,17 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `GET /geo/areas/:id/map` | none | `{id, name, unitCount, bounds, version, tiles, minZoom, maxZoom, labelMinZoom}` for any folder |
 | `GET /geo/areas/:id/units` | none | `[{id, name, lon, lat}]`: every municipality of the folder with a point inside it |
 | `GET /geo/areas/:id/tiles/:z/:x/:y.mvt?v=` | none | vector tile (see Map) |
-| `GET /matches?name=&size=&page=` | none | paged list; `size` in `free`,`s`,`m`,`l` |
-| `POST /matches` `{name,areaIds[],startAt,maxDays?,maxPlayers,turnHours,inviteCode?,config?}` | user | create (status `DRAFT`, then `OPEN` when the owner opens registrations), enqueue `match.start` |
-| `GET /matches/:id` | none | public summary |
-| `POST /matches/:id/join` `{geoUnitId,empire:{name,color,emblem,motto?},inviteCode?}` | user | create empire on a free territory |
-| `GET /matches/:id/map` | none | GeoJSON FeatureCollection, one feature per GeoUnit: `properties {geoUnitId,name}`; simplified geometry |
+| `GET /matches/options` | none | `{rules, maxPlayersLimit, colors, emblems}`: defaults and catalogue for the forms |
+| `GET /geo/tree` | none | every folder with the municipalities under it: `{id, name, parentId, unitCount}` |
+| `GET /matches?name=&size=&page=&pageSize=` | none | `OPEN` and `RUNNING` matches, paged: `{page, pageSize, total, matches}`; `size` by enrolled players: `free`, `s` (≤20), `m` (21–50), `l` (>50) |
+| `GET /matches/mine` | user | matches the user owns (drafts included) or plays |
+| `POST /matches` `{name, areaIds[], startAt, maxDays?, maxPlayers?, turnHours?, inviteCode?, config?}` | user | create a `DRAFT`; `config` holds only the rules that differ from the defaults |
+| `GET /matches/:id` | none | summary: `{id, name, status, startAt, maxDays, maxPlayers, turnHours, currentTurn, turnEndsAt, players, hasInviteCode, owner, areas, config, isOwner}`, plus `inviteCode` for the owner |
+| `PATCH /matches/:id` / `DELETE /matches/:id` | owner | change (`409 MATCH_LOCKED`, `TOO_FEW_SEATS`, `START_IN_PAST`); delete a draft (`409 NOT_A_DRAFT`) |
+| `POST /matches/:id/open` | owner | open registrations: create territories, schedule the start; `409 START_IN_PAST`, `NO_UNITS`, `NOT_A_DRAFT` |
+| `POST /matches/:id/join` `{geoUnitId, empire:{name,color,emblem,motto}, inviteCode?}` | user | found an empire; `403 INVITE_CODE_REQUIRED`, `409 REGISTRATION_CLOSED`, `ALREADY_JOINED`, `MATCH_FULL`, `TERRITORY_TAKEN`, `EMPIRE_NAME_TAKEN`, `EMPIRE_COLOR_TAKEN` |
+| `PATCH /matches/:id/empire` `{name,color,emblem,motto}` | player | restyle before the start; `409 MATCH_STARTED` |
+| `GET /matches/:id/map` / `/units` / `/tiles/:z/:x/:y.mvt?v=` | none | map of the match (see Matches) |
 | `GET /matches/:id/state` | optional | everything the viewer may see (below) |
 | `POST /matches/:id/annex` `{territoryId,payFromId}` | player | |
 | `POST /matches/:id/allocate` `{amounts:{[territoryId]:number}}` | player | |
@@ -196,19 +214,16 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `GET /matches/:id/history` | any | `[{turn, events:[...]}]` |
 | `GET /matches/:id/history/:turn` | any | `{turn, ownership:{[geoUnitId]:empireId|null}}` |
 
-`GET /matches/:id/state` response:
+`GET /matches/:id/state` response today (battles, alerts, structures and live counters join it with their milestones):
 
 ```ts
 {
-  match: { id, name, status, currentTurn, turnEndsAt, maxPlayers, turnHours, startAt, config },
-  me: null | { empireId, annexLeft: number, turnValue: number },
-  empires: [{ id, name, color, emblem, motto, username, status, capitalTerritoryId, secondCapitalTerritoryId, units: number }],
-  territories: [{ id, name, ownerEmpireId, geoUnitIds: number[] | string[], adj: string[], isArea: boolean,
-                  protected: boolean, alert: boolean, battleId: string | null, block: null | { turnsLeft: number },
-                  resources: number | null /* null = hidden from this viewer */ }],
-  battles: [{ id, targetId, attackerEmpireId, defenderEmpireId, status, outcome, turn,
-              fromIds: string[] | null, cost: number | null /* only for the attacker */ }],
-  online: { connected: number, total: number }
+  match: MatchSummary,                       // as GET /matches/:id
+  me: null | { empireId },
+  empires: [{ id, name, color, emblem, motto, username, status, capitalTerritoryId, units: number }],
+  // Owned territories only: every other municipality of the match is free.
+  territories: [{ id, name, ownerEmpireId, geoUnitIds: number[], isArea: boolean, protected: boolean,
+                  resources: number | null /* null = hidden from this viewer */ }]
 }
 ```
 
@@ -228,4 +243,4 @@ Client → server, from M6: `{t:"sub",matchId}`, `{t:"unsub",matchId}`.
 
 ## Event types (`GameEvent.type`)
 
-`EMPIRE_CREATED`, `ANNEXED`, `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
+`MATCH_OPENED`, `EMPIRE_CREATED` (`data.empireName`, `data.territoryName`), `ANNEXED`, `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
