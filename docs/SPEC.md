@@ -283,6 +283,11 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - **Nell'interfaccia**: la voce "Storico dei turni" del menu elenca i turni dal più recente, una card richiudibile per turno con il numero di eventi; aperta, mostra gli eventi (quelli che citano un comune portano la mappa su quel comune) e il pulsante **Rivedi sulla mappa**.
 - **Revisione della mappa**: la mappa si colora con i proprietari di quel turno; una barra in alto a sinistra dice quale turno si sta guardando, con le frecce per il turno precedente e successivo e **Torna al presente**. Durante la revisione non si vedono capitali, strutture, aree, allerte e scontri (sono del presente) e un tocco su un comune dice solo di chi era allora.
 
+### Errori imprevisti
+
+- Se una pagina si rompe, il giocatore non vede una schermata bianca: la barra in alto resta, compare "Qualcosa si è rotto" con il pulsante per ricaricare e il collegamento alla homepage. L'errore viene segnalato da solo al server.
+- Di un errore del browser si registrano il messaggio tecnico e la pagina in cui è successo, mai quello che il giocatore stava scrivendo.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
@@ -349,6 +354,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Tracciamento degli errori** `[ASSUNZIONE]`: gli errori finiscono nei log strutturati dei container, con un campo `event` su cui cercare e impostare allarmi; non è collegato nessun servizio esterno (Sentry o simili) né un raccoglitore di log, che dipendono da dove verrà ospitato il gioco.
 
 - **Storico, scelte da confermare** `[ASSUNZIONE]`: lo storico è pubblico (anche per ospiti); i messaggi dei giocatori non ne fanno parte; la revisione mostra solo la proprietà dei comuni, non capitali, aree e strutture di allora; una partita con moltissimi turni li elenca tutti, senza paginazione.
 

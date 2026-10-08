@@ -64,6 +64,7 @@ services:
     environment:
       DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
       KAFKA_BROKERS: kafka:9092
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
       UPLOAD_DIR: /data/uploads
       PORT: "3000"
@@ -90,6 +91,7 @@ services:
     environment:
       DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
       KAFKA_BROKERS: kafka:9092
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
       UPLOAD_DIR: /data/uploads
     depends_on:
