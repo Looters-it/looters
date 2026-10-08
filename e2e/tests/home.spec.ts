@@ -56,20 +56,22 @@ test.describe('homepage on a phone', () => {
     await expectNoSidewaysScroll(page)
   })
 
-  test('opens the account panel inside the screen', async ({ page }) => {
+  test('goes from the account icon to the sign-in page, and the form can be filled', async ({
+    page,
+  }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Accesso e registrazione' }).click()
-    const panel = page.getByRole('dialog')
-    await expect(panel).toBeVisible()
-    const box = await panel.boundingBox()
-    const viewport = page.viewportSize()!
-    expect(box!.x).toBeGreaterThanOrEqual(0)
-    expect(box!.x + box!.width).toBeLessThanOrEqual(viewport.width)
-    // Both ways in are reachable, and the form can be filled.
-    await expect(panel.getByRole('tab', { name: 'Accedi' })).toBeVisible()
-    await panel.getByLabel('Nome utente').fill('qualcuno')
-    await expect(panel.getByLabel('Nome utente')).toHaveValue('qualcuno')
+    await page.getByRole('link', { name: 'Accesso e registrazione' }).click()
+    await expect(page).toHaveURL(/\/accesso$/)
+    await expect(page.getByRole('tab', { name: 'Accedi' })).toBeVisible()
+    await page.getByLabel('Nome utente').fill('qualcuno')
+    await expect(page.getByLabel('Nome utente')).toHaveValue('qualcuno')
     await expectNoSidewaysScroll(page)
+  })
+
+  test('remembers where a guest was when they go to sign in', async ({ page }) => {
+    await page.goto(`/partite/${world.matchId}`)
+    await page.getByRole('link', { name: 'Accesso e registrazione' }).click()
+    await expect(page).toHaveURL(new RegExp(`/accesso\\?poi=%2Fpartite%2F${world.matchId}$`))
   })
 
   test('takes a player to their match', async ({ page, context }) => {
@@ -103,7 +105,7 @@ test.describe('in English', () => {
     await expect(page.getByRole('link', { name: 'Skip to content' })).toBeAttached()
     await expectNoSidewaysScroll(page)
 
-    await page.getByRole('button', { name: 'Sign in and registration' }).click()
+    await page.getByRole('link', { name: 'Sign in and registration' }).click()
     await page.getByRole('combobox', { name: 'Language' }).click()
     await page.getByRole('option', { name: 'Italiano' }).click()
     await expect(page.locator('html')).toHaveAttribute('lang', 'it')
