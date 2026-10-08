@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 6 (Turni, risorse e annessioni) completata.** Una partita avanza turno dopo turno, gli imperi guadagnano risorse e si espandono annettendo i comuni liberi; gli scontri non esistono ancora.
+Stato: **milestone 7 (Scontri) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. La caduta di un impero e la fine della partita non esistono ancora.
 
 ## Cosa esiste
 
@@ -144,6 +144,47 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Se due imperi annettono lo stesso comune nello stesso momento lo ottiene il primo; il secondo riceve un errore, non spende nulla e conserva l'annessione del turno.
 - I saldi non possono mai andare in negativo, nemmeno con richieste contemporanee.
 
+### Scontri
+
+**Dichiarazione**
+
+- Un impero attacca un comune di un altro impero confinante con il proprio territorio, scegliendo da quali suoi comuni confinanti con il bersaglio far partire l'attacco: uno o più.
+- Ogni comune usato deve avere almeno 1 risorsa e non deve essere già in uno scontro.
+- Non si può attaccare un comune appena acquisito (protetto fino a fine turno), un comune già sotto attacco, un comune libero (si annette) o un proprio comune.
+- **Costo**: una percentuale delle risorse di ciascun comune usato: 50% con un comune, più 10% per ogni comune in più, fino al 100%. Si arrotonda per eccesso e si paga subito, alla dichiarazione.
+- **Forza**: la somma delle risorse sui comuni usati al momento della dichiarazione, prima di pagare il costo. Anche la forza del difensore viene fissata in quel momento: sono le risorse sul comune attaccato.
+- Prima di confermare il giocatore vede forza in campo, quota pagata e costo; non vede alcuna probabilità di vittoria, perché le risorse del nemico sono nascoste.
+
+**Blocco**
+
+- Un comune può essere coinvolto in un solo scontro alla volta, come bersaglio o come comune di partenza. Finché lo scontro è aperto non può essere attaccato, attaccare, dare o ricevere risorse, né pagare un'annessione. Il vincolo è garantito dal database.
+- Gli altri comuni dei due imperi restano liberi, e uno stesso impero può essere attaccato su più comuni contemporaneamente, anche da imperi diversi.
+
+**Risposta del difensore**
+
+- Il difensore riceve subito un'allerta rossa nella barra in alto. La risposta si dà sempre in una finestra modale, che mostra le risorse nel comune e il costo della difesa.
+- **Difendersi**: paga il 50% delle risorse sul comune attaccato (per eccesso) e si combatte subito.
+- **Arrendersi**: cede il comune con tutte le sue risorse senza spendere nulla; l'attaccante riceve indietro il 50% del costo, comune per comune (per difetto).
+- Se non risponde entro la fine del turno, alla chiusura si combatte come se si fosse difeso: paga il costo della difesa. Il silenzio non è mai una resa.
+- L'esito si legge nella stessa finestra.
+
+**Battaglia**
+
+- Ciascuno moltiplica la propria forza per un numero casuale tra 0 e 1, estratto in modo indipendente con un generatore sicuro. Vince chi ottiene il valore più alto; in caso di parità esatta vince il difensore.
+- A parità di risorse l'attaccante vince una volta su due; con il doppio, tre su quattro. La frequenza delle vittorie è verificata nei test rispetto a questa formula.
+- Se vince l'attaccante prende il comune con le risorse rimaste dopo il costo della difesa. Se vince il difensore lo tiene, ma il costo della difesa è speso comunque. Il costo dell'attacco non viene mai restituito, tranne la metà in caso di resa.
+- Il comune conquistato è protetto fino alla fine del turno. Se viene conquistato alla chiusura di un turno (difensore che non ha risposto), è protetto per tutto il turno successivo.
+- Forze, costi, numeri estratti, esito e nome della formula usata vengono registrati.
+
+**Cosa vede chi**
+
+- Tutti vedono quali comuni sono sotto attacco (bordo rosso pulsante in mappa) e tra quali imperi è lo scontro.
+- L'attaccante vede i propri numeri (comuni usati, costo, forza), il difensore i propri (risorse nel comune, costo della difesa). Nessuno vede i numeri dell'altro né quelli estratti.
+- Da quali comuni parte un attacco lo sa solo l'attaccante.
+- La voce "Scontri" del menu elenca gli scontri in corso e, per i due imperi coinvolti, quelli conclusi nel turno corrente e nel precedente.
+
+**Limite attuale**: conquistare una capitale oggi sposta solo il comune. La caduta dell'impero arriva con la milestone 8.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
@@ -178,7 +219,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 
-Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost` e `annexPerTurn`; le altre sono definite e validate in attesa delle rispettive milestone.
+Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct` e `surrenderRefundPct`; le altre sono definite e validate in attesa delle rispettive milestone.
 
 ### Vincoli garantiti dal database
 
@@ -210,6 +251,9 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Protezione di un comune conquistato alla chiusura del turno**: l'ho estesa a tutto il turno successivo, perché "fino alla fine del turno" appena chiuso non proteggerebbe nulla. Da confermare.
+- **Chi attacca è pubblico**: durante lo scontro tutti vedono quale impero attacca quale comune (non da dove). Il brief dice solo che lo scontro è visibile in mappa. Da confermare.
+- **Icone di stato in mappa**: per ora c'è solo il bordo del comune sotto attacco; scudo del protetto e segnaposto della capitale non sono ancora disegnati.
 - **Peso dei comuni nuovi nella ripartizione in proporzione**: oggi è 1. Da decidere se dare al comune nuovo un peso più sensato (per esempio la media degli altri).
 - **Connessi della partita**: conto i giocatori con un impero attivo che hanno la partita aperta in quel momento, non quelli semplicemente collegati al sito. Da confermare.
 - **Interfaccia su telefono**: le due schede in fondo (mappa, pannello) non sono state provate su un telefono reale; la terza scheda del prototipo, la bacheca, arriva con la milestone 10.

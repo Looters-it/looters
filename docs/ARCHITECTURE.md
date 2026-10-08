@@ -50,7 +50,7 @@ There are two channels from `api` to `jobs`, and one back.
 - The key keeps the battles of one match in order on one partition; `jobs` processes partitions in parallel, so the number of partitions is the number of battles resolved at the same time.
 - Delivery is at-least-once (idempotent producer with `acks=all`; offsets committed after processing). Resolution must be idempotent: it locks the battle row and does nothing unless `status = 'OPEN'`.
 - A message that fails 5 times is skipped and logged. Nothing is lost: `turn.close` resolves every battle still open, honouring a recorded `response` and treating a missing one as `DEFEND`. The same safety net covers a message that never reached Kafka after the database commit.
-- Until M7 the consumer only logs the request: no battle can exist yet.
+- The message is published by `api` when the defender answers. `jobs` resolves the battle if it has an answer and is still open; anything else (already resolved, not answered, match not running) is skipped.
 
 ### Notifications back to the api
 
@@ -160,6 +160,25 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
 - **Protection** is stored as the number of the turn of acquisition (`protectedUntilTurn`) and read as `>= currentTurn`: moving to the next turn ends it with no update.
 - **Unit card** (`GET /matches/:id/units/:geoUnitId`): `{geoUnitId, name, territory:{id, name, ownerEmpireId, protected, inBattle, resources|null}, neighbours:[{geoUnitId, name, territoryId, ownerEmpireId}], annex}`; `annex` is `{cost, left, payFrom:[{territoryId, name, resources, usable}]}` for a player looking at a free municipality of a running match, otherwise null. `resources` of the territory is null unless it is the viewer's, free territories included.
 
+## Battles
+
+The api records, `jobs` decides. Nothing in the api computes an outcome.
+
+- **Declare** (`POST /matches/:id/attacks {targetGeoUnitId, fromTerritoryIds[], turn}`, `src/modules/game/battles.ts`). After the usual action locks, the target and every source territory are locked `FOR UPDATE` in id order (`lockTerritories`); every reader or writer of a territory's resources goes through the same lock, so the amounts an attack records are the amounts really there. Checks: target owned by another empire, not protected (`protectedUntilTurn >= currentTurn`), not in a battle; each source own, adjacent to the target, not in a battle, holding at least 1. Then, in the same transaction: `Battle` row (`attackPct`, `attackCost`, `attackForce` = sum of the sources before paying, `defenseForce` = target resources now); a `BattleSource` per territory (`cost`, `resourcesAtDeclaration`); a `BattleLock` per territory involved, inserted in id order; the cost taken from each source.
+- **Cost** (`src/rules/attack.ts`): `pct = min(attackMaxPct, attackPct + attackStepPct × (n − 1))`, each source pays `ceil(resources × pct / 100)`.
+- **One battle per territory**: checked on the locked rows, and guaranteed by the primary key of `BattleLock` whatever the application does (a violation becomes `409 TERRITORY_IN_BATTLE`). A locked territory cannot be attacked, attack, move or receive resources, or pay for an annexation.
+- **Preview** (`POST /matches/:id/attacks/preview`): the same checks and numbers, nothing saved, nothing about the defender.
+- **Respond** (`POST /matches/:id/battles/:battleId/respond {action}`): only the defender, once. The answer is stored on the battle (`response`, `respondedAt`) and the battle is published on Kafka. If publishing fails the answer stays: the turn close will use it.
+- **Resolve** (`jobs`, `internal/battle`), in one transaction with the battle row locked; a battle not `OPEN` is skipped, so a repeated delivery applies nothing twice.
+  - `SURRENDER`: the attacker takes the territory with everything on it; each source gets back `floor(cost × surrenderRefundPct / 100)`.
+  - `DEFEND`: the target pays `ceil(defenseForce × defensePct / 100)`, whoever wins; the `Resolver` draws two numbers and decides. The current one, `uniform-product-v1`, compares `attackForce × r1` with `defenseForce × r2`, `r1` and `r2` independent and uniform in [0, 1) from `crypto/rand`; the attacker wins only if strictly greater, so a tie goes to the defender. Its name, both rolls, the forces and the costs are stored on the battle.
+  - If the attacker wins, the territory changes owner with what is left on it and is protected through `protectedUntilTurn`.
+  - The locks are deleted, `BATTLE_RESOLVED` is recorded (names and outcome only) and `battle.resolved` is notified.
+- **At turn close**, before income: every battle still open is resolved in declaration order. One with a recorded answer uses it; one without is fought as `DEFEND`: silence is never a surrender. A territory conquered here is protected through the turn that begins (`turn + 1`), because protection "until the end of the turn" that is ending would protect nothing; one conquered during a turn is protected until that turn ends.
+- **Replacing the formula**: implement `battle.Resolver` and set it on the `battle.Service`; old battles keep the name of the resolver that decided them.
+- **What each side sees** (`MatchService.state`, `battles`): open battles are listed for everyone with target and the two empires. The attacker also gets `fromTerritoryIds`, `attackCost`, `attackForce`; the defender gets `response`, `defenseForce`, `defenseCost`. Neither gets the other's numbers or the rolls. Battles resolved in the current or previous turn are listed for their two sides only. `Territory.battleId` is set on a target for everyone, on a source only for its owner.
+- **Capital**: conquering a capital moves the municipality like any other; the fall of the empire arrives with M8.
+
 ## Game mechanics, precisely
 
 All amounts are integers; percentages round the cost up (`ceil`).
@@ -218,8 +237,9 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `POST /matches/:id/annex` `{geoUnitId, payFromTerritoryId, turn}` | player | `409 ANNEX_LIMIT`, `TERRITORY_TAKEN`, `NOT_ADJACENT`, `NOT_ENOUGH_RESOURCES`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY`, `TURN_CHANGED`, `MATCH_NOT_RUNNING`; `403 NOT_A_PLAYER` |
 | `POST /matches/:id/allocate` `{amounts:{[territoryId]:number}, turn}` | player | `409 ALLOCATION_SUM`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY` |
 | `PUT /matches/:id/allocation-rule` `{mode, weights?}` | player | how each turn's income is split |
-| `POST /matches/:id/attacks` `{targetId,fromIds[]}` | player | |
-| `POST /matches/:id/battles/:battleId/respond` `{action:"DEFEND"|"SURRENDER"}` | player | |
+| `POST /matches/:id/attacks/preview` `{targetGeoUnitId, fromTerritoryIds[]}` | player | `{pct, totalCost, force, from:[{territoryId, name, resources, cost}]}` |
+| `POST /matches/:id/attacks` `{targetGeoUnitId, fromTerritoryIds[], turn}` | player | declare; `409 TARGET_IS_FREE`, `TARGET_IS_YOURS`, `TARGET_PROTECTED`, `TERRITORY_IN_BATTLE`, `NOT_ADJACENT`, `NOT_ENOUGH_RESOURCES`, `NOT_YOUR_TERRITORY`, `TURN_CHANGED` |
+| `POST /matches/:id/battles/:battleId/respond` `{action:"DEFEND"|"SURRENDER"}` | defender | `403 NOT_THE_DEFENDER`, `409 BATTLE_ANSWERED` |
 | `POST /matches/:id/capital` `{territoryId}` | player | move capital |
 | `POST /matches/:id/merge` `{territoryIds[],name}` | player | |
 | `PATCH /matches/:id/territories/:tid` `{name}` | player | rename own area |
@@ -238,7 +258,9 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
   // Owned territories only: every other municipality of the match is free.
   territories: [{ id, name, ownerEmpireId, geoUnitIds: number[], isArea: boolean, protected: boolean,
                   resources: number | null /* null = hidden from this viewer */,
-                  weight: number | null /* own territories only */ }],
+                  weight: number | null /* own territories only */,
+                  battleId: string | null /* targets for everyone, sources for their owner */ }],
+  battles: [/* see Battles */],
   online: { connected: number, total: number }
 }
 ```
@@ -255,9 +277,10 @@ Server → client:
 
 - `{t:"online",n}` global count, sent on connect and whenever it changes
 - `{t:"session.revoked"}` then the socket closes with code `4401`: the session was revoked, logged out or has expired
-- `{t:"match.update",matchId,kinds:string[]}` to the followers of a match when something in it changed (`kinds` hints at what: `match`, `empires`, `territories`, `resources`, `turn.closed`, `match.started`). It carries no data: the client reads `/state` again, so what a viewer may see is decided in one place
+- `{t:"match.update",matchId,kinds:string[]}` to the followers of a match when something in it changed (`kinds` hints at what: `match`, `empires`, `territories`, `resources`, `battles`, `battle.resolved`, `turn.closed`, `match.started`). It carries no data: the client reads `/state` again, so what a viewer may see is decided in one place
 - `{t:"match.online",matchId,connected}` to the followers of a match when the number of its players watching it changes
-- from M7: `{t:"battle.incoming",matchId,battleId}` (only to the defender); from M10: `{t:"board",matchId,event}`
+- `{t:"battle.incoming",matchId,battleId}` only to the attacked player, when an attack on them is declared
+- from M10: `{t:"board",matchId,event}`
 
 "Online" = distinct users with a valid session and at least one open socket; guests are not counted. The same number is at `GET /api/stats/online`. Per match, "connected" = distinct users with an active empire in the match and a socket following it; the total is the number of active empires. Whether a user plays in a match is read once, when the socket subscribes.
 
@@ -265,4 +288,4 @@ The server pings every 30 s and drops sockets that do not answer; sessions that 
 
 ## Event types (`GameEvent.type`)
 
-`MATCH_OPENED`, `MATCH_STARTED`, `TURN_CLOSED`, `EMPIRE_CREATED` and `ANNEXED` (`data.empireName`, `data.territoryName`), `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
+`MATCH_OPENED`, `MATCH_STARTED`, `TURN_CLOSED`, `EMPIRE_CREATED` and `ANNEXED` (`data.empireName`, `data.territoryName`), `BATTLE_RESOLVED` (`data.attackerName`, `data.defenderName`, `data.territoryName`, `data.outcome`, `data.defenderEmpireId`), `BATTLE_DECLARED` (not public until resolved), `BATTLE_RESOLVED` (`data.outcome`), `EMPIRE_FALLEN`, `CAPITAL_BUILT`, `CAPITAL_MOVED`, `CAPITAL_PROMOTED`, `AREA_CREATED`, `AREA_RENAMED`, `MESSAGE` (`data.text`), `MATCH_STARTED`, `MATCH_FINISHED`. `data` holds ids and names only, never amounts.
