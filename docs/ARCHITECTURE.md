@@ -177,7 +177,17 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - **At turn close**, before income: every battle still open is resolved in declaration order. One with a recorded answer uses it; one without is fought as `DEFEND`: silence is never a surrender. A territory conquered here is protected through the turn that begins (`turn + 1`), because protection "until the end of the turn" that is ending would protect nothing; one conquered during a turn is protected until that turn ends.
 - **Replacing the formula**: implement `battle.Resolver` and set it on the `battle.Service`; old battles keep the name of the resolver that decided them.
 - **What each side sees** (`MatchService.state`, `battles`): open battles are listed for everyone with target and the two empires. The attacker also gets `fromTerritoryIds`, `attackCost`, `attackForce`; the defender gets `response`, `defenseForce`, `defenseCost`. Neither gets the other's numbers or the rolls. Battles resolved in the current or previous turn are listed for their two sides only. `Territory.battleId` is set on a target for everyone, on a source only for its owner.
-- **Capital**: conquering a capital moves the municipality like any other; the fall of the empire arrives with M8.
+- **Capital**: after a conquest `endgame.CapitalLost` runs in the same transaction (see Capital, fall and end of the match).
+
+## Capital, fall and end of the match
+
+- **Fall** (`jobs`, `internal/endgame`, called at the end of every battle the attacker wins): if the conquered territory was the defender's capital, in the same transaction the empire becomes `FALLEN` (`fallenTurn`, no capital); the conqueror keeps only the capital with its resources; every other territory of the fallen empire becomes free (`ownerEmpireId = NULL`) and keeps its resources, hidden like any free territory; every battle still open that the fallen empire was part of, as attacker or as defender, is closed as `CANCELLED`, its territories unlocked and the cost of the attack returned to the territories that paid it. `EMPIRE_FALLEN` is recorded.
+- **Spectator**: the player of a fallen empire still gets `me` in the state, with `status: "FALLEN"`; every action answers `409 EMPIRE_FALLEN`. A fallen empire is not counted in `online.total`.
+- **End, last empire standing**: when a fall leaves one active empire the match is `FINISHED` at once with that empire as `winnerEmpireId`, whether or not it has a maximum duration.
+- **End, deadline**: a match with `maxDays` ends at the first turn close whose turn ended on or after `startAt + maxDays` days. That close does everything a close does (battles, income, alerts, snapshot) and then, instead of opening a turn, picks the winner: most total resources among active empires; if equal, most municipalities; if still equal, the one that joined first.
+- **Finishing** cancels any battle still open (as above), sets `finishedAt` and `winnerEmpireId`, records `MATCH_FINISHED` and notifies `match.finished`. Pending `turn.close` jobs find the match not running and do nothing. Only when the match is finished does the state carry `resources` (the total) on every empire.
+- **Move the capital** (`POST /matches/:id/capital {territoryId, turn}`): to another own territory, at most once every `capitalMoveEveryTurns` turns (`Empire.lastCapitalMoveTurn`), and not while the old or the new capital is in a battle. `me.capitalMoveInTurns` says how many turns are left to wait. `CAPITAL_MOVED` is recorded.
+- **Accumulation alert** (`endgame.UpdateAccumulationAlerts`, at turn close after income): for empires with at least `accumAlertMinTerritories` territories, a territory holding more than `accumAlertPct`% of the empire's resources is noted (`aboveAlertAtLastClose`); if it was already noted at the previous close, `alert` is set. It clears at the first close below the threshold. `alert` is public in the state and carries no amount.
 
 ## Game mechanics, precisely
 
@@ -240,7 +250,7 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `POST /matches/:id/attacks/preview` `{targetGeoUnitId, fromTerritoryIds[]}` | player | `{pct, totalCost, force, from:[{territoryId, name, resources, cost}]}` |
 | `POST /matches/:id/attacks` `{targetGeoUnitId, fromTerritoryIds[], turn}` | player | declare; `409 TARGET_IS_FREE`, `TARGET_IS_YOURS`, `TARGET_PROTECTED`, `TERRITORY_IN_BATTLE`, `NOT_ADJACENT`, `NOT_ENOUGH_RESOURCES`, `NOT_YOUR_TERRITORY`, `TURN_CHANGED` |
 | `POST /matches/:id/battles/:battleId/respond` `{action:"DEFEND"|"SURRENDER"}` | defender | `403 NOT_THE_DEFENDER`, `409 BATTLE_ANSWERED` |
-| `POST /matches/:id/capital` `{territoryId}` | player | move capital |
+| `POST /matches/:id/capital` `{territoryId, turn}` | player | move the capital; `409 ALREADY_CAPITAL`, `CAPITAL_MOVED_RECENTLY`, `TERRITORY_IN_BATTLE`, `NOT_YOUR_TERRITORY` |
 | `POST /matches/:id/merge` `{territoryIds[],name}` | player | |
 | `PATCH /matches/:id/territories/:tid` `{name}` | player | rename own area |
 | `POST /matches/:id/structures` `{type:string,territoryId}` (a key of the structure catalogue) | player | |
@@ -253,13 +263,14 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 ```ts
 {
   match: MatchSummary,                       // as GET /matches/:id
-  me: null | { empireId, annexLeft, turnValue, allocationMode },
+  me: null | { empireId, annexLeft, turnValue, allocationMode, status, capitalMoveInTurns },
   empires: [{ id, name, color, emblem, motto, username, status, capitalTerritoryId, units: number }],
   // Owned territories only: every other municipality of the match is free.
   territories: [{ id, name, ownerEmpireId, geoUnitIds: number[], isArea: boolean, protected: boolean,
                   resources: number | null /* null = hidden from this viewer */,
                   weight: number | null /* own territories only */,
-                  battleId: string | null /* targets for everyone, sources for their owner */ }],
+                  battleId: string | null /* targets for everyone, sources for their owner */,
+                  alert: boolean }],
   battles: [/* see Battles */],
   online: { connected: number, total: number }
 }

@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 7 (Scontri) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. La caduta di un impero e la fine della partita non esistono ancora.
+Stato: **milestone 8 (Capitale e vittoria) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
 
 ## Cosa esiste
 
@@ -123,7 +123,6 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Alla chiusura: ogni impero attivo riceve il guadagno, il limite di annessioni si azzera, le protezioni dei comuni appena acquisiti finiscono, e viene salvato chi possiede ogni comune (servirà allo storico).
 - La chiusura è ripetibile: se viene eseguita due volte per lo stesso turno, la seconda non ha effetto.
 - Le azioni dei giocatori hanno effetto immediato. Ogni azione dichiara il turno in cui è stata decisa: se nel frattempo il turno è cambiato viene rifiutata e nulla viene speso.
-- Una partita senza durata massima non finisce mai: le condizioni di fine partita arrivano con la milestone 8.
 
 ### Risorse
 
@@ -183,7 +182,32 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Da quali comuni parte un attacco lo sa solo l'attaccante.
 - La voce "Scontri" del menu elenca gli scontri in corso e, per i due imperi coinvolti, quelli conclusi nel turno corrente e nel precedente.
 
-**Limite attuale**: conquistare una capitale oggi sposta solo il comune. La caduta dell'impero arriva con la milestone 8.
+### Capitale, caduta e vittoria
+
+**Capitale**
+
+- Ogni impero ha una capitale, sempre visibile a tutti in mappa (un disco bordato nel colore dell'impero).
+- Si può spostare in un altro proprio comune una volta ogni 3 turni, mai mentre la capitale attuale o quella nuova è in uno scontro: la capitale non può sottrarsi a un attacco.
+
+**Caduta di un impero**
+
+- Se la capitale viene conquistata, in battaglia o per resa, l'impero cade e il giocatore resta nella partita come spettatore: vede tutto ciò che vedono gli ospiti, non può più agire.
+- Chi ha conquistato la capitale ottiene solo quel comune, con le sue risorse.
+- Tutti gli altri comuni dell'impero caduto diventano liberi e conservano le loro risorse, che restano nascoste finché qualcuno non li annette.
+- Gli scontri ancora aperti in cui l'impero caduto era attaccante o difensore vengono annullati: non si combattono, i comuni coinvolti si sbloccano e il costo dell'attacco torna ai comuni che l'avevano pagato.
+
+**Fine della partita**
+
+- **Ultimo impero rimasto**: quando resta un solo impero attivo la partita finisce subito e quell'impero vince, anche se la partita ha una durata massima.
+- **Scadenza**: una partita con durata massima finisce alla prima chiusura di turno che cade alla scadenza o dopo. Quel turno viene chiuso normalmente (scontri, guadagno), poi vince l'impero attivo con più risorse totali; a parità chi controlla più comuni; a ulteriore parità chi si è iscritto prima.
+- A partita conclusa non si può più fare nulla, gli scontri aperti vengono annullati e la classifica mostra il vincitore e le risorse totali di ogni impero, fino a quel momento nascoste.
+
+**Allerta di accumulo**
+
+- Quando un comune contiene più del 50% delle risorse del suo impero a due chiusure di turno consecutive, compare in mappa un'allerta visibile a tutti (un disco rosso con punto esclamativo). Segnala il comune, mai la quantità.
+- Sparisce alla prima chiusura in cui il comune è tornato sotto la soglia.
+- Vale solo per gli imperi con almeno 3 territori.
+- La verifica avviene alla chiusura del turno, dopo il guadagno.
 
 ### Interfaccia di partita
 
@@ -219,7 +243,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 
-Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct` e `surrenderRefundPct`; le altre sono definite e validate in attesa delle rispettive milestone.
+Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct`, `surrenderRefundPct`, `capitalMoveEveryTurns` e le due dell'allerta di accumulo; le altre sono definite e validate in attesa delle rispettive milestone.
 
 ### Vincoli garantiti dal database
 
@@ -251,6 +275,10 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Ultimo impero rimasto in una partita con scadenza**: la faccio finire subito, anche se il brief cita questa regola solo per le partite senza scadenza. Da confermare.
+- **Parità totale alla scadenza** (stesse risorse e stessi comuni): vince chi si è iscritto prima. Il brief non lo dice.
+- **Scontri annullati alla caduta di un impero**: il costo dell'attacco viene restituito per intero. Il brief non copre il caso.
+- **Stemma sulla capitale**: il segnaposto è un disco colorato, non lo stemma dell'impero come da §2.8.
 - **Protezione di un comune conquistato alla chiusura del turno**: l'ho estesa a tutto il turno successivo, perché "fino alla fine del turno" appena chiuso non proteggerebbe nulla. Da confermare.
 - **Chi attacca è pubblico**: durante lo scontro tutti vedono quale impero attacca quale comune (non da dove). Il brief dice solo che lo scontro è visibile in mappa. Da confermare.
 - **Icone di stato in mappa**: per ora c'è solo il bordo del comune sotto attacco; scudo del protetto e segnaposto della capitale non sono ancora disegnati.
