@@ -131,7 +131,7 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
   "secondCapitalCostTurns": 20,
   "blockCost": 300, "blockTurns": 5, "blockCooldownTurns": 5,
   "allianceMaxMembers": 3, "allianceLeaveNoticeTurns": 1,
-  "boardMaxChars": 500
+  "boardMaxChars": 500, "boardMessageIntervalSec": 20
 }
 ```
 
@@ -202,6 +202,16 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - **Area outlines** (`GET /matches/:id/areas`): GeoJSON, one feature per area, geometry `ST_Union` of the simplified municipalities, with name and a point inside. The union is computed by PostGIS on request, in the api: areas are few and small, so no job is involved.
 - **State**: `structures: [{id, type, territoryId, empireId, effects, turnsLeft}]`, active ones, public.
 
+## Board
+
+- The board is the public face of `GameEvent`: no separate table. An announcement is a typed domain event written by whatever caused it (`api` for joins, annexations, capitals, areas; `jobs` for battles, falls, starts and ends); a player's message is an event of type `MESSAGE` with `data.text`.
+- `BOARD_KINDS` (`api/src/modules/board/service.ts`) says which event types appear and under which filter: `messages`, `empires`, `annexations`, `battles`, `capitals`, `areas`, `alliances`, `match`. Events not listed (`TURN_CLOSED`, `MATCH_OPENED`…) stay off the board. **Adding an announcement** is recording a new event type, listing it in `BOARD_KINDS` and giving it a sentence in the web locale (`game.board.events.<TYPE>`).
+- `GET /matches/:id/board?kind=&empireId=&before=&limit=`: newest first, for anyone who can see the match. Each entry is `{id, type, turn, createdAt, empireId, territoryId, geoUnitId, data}`; `geoUnitId` is a municipality of the territory the event is about, so the client can centre the map on it. `empireId` filters on the empire of the event or, for battles, the defender.
+- **No amounts, ever**: `data` holds names and codes only, as strings. The api does not write the text: the web interface builds each sentence from the event's type and names, which is also what makes it translatable.
+- `POST /matches/:id/board {text}`: only a player with an active empire, in a match not finished; at most `boardMaxChars` characters; at least `boardMessageIntervalSec` seconds after the same empire's previous message, checked in the database with the empire row locked (`429 RATE_LIMITED` with `Retry-After`).
+- `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
+- Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
+
 ## Game mechanics, precisely
 
 All amounts are integers; percentages round the cost up (`ceil`).
@@ -269,7 +279,7 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `PATCH /matches/:id/territories/:territoryId` `{name}` | player | rename an own area |
 | `GET /matches/:id/structures/catalogue` | player | what can be built, where, at what cost |
 | `POST /matches/:id/structures` `{type, territoryId, turn}` / `POST /matches/:id/structures/:structureId/move` `{territoryId, turn}` | player | build; move a movable structure |
-| `GET /matches/:id/board?type=&empireId=&before=` / `POST` `{text}` / `DELETE /matches/:id/board/:eventId` | read: any; write: player; delete: owner or admin | |
+| `GET /matches/:id/board?kind=&empireId=&before=&limit=` / `POST` `{text}` / `DELETE /matches/:id/board/:eventId` | read: any; write: player; delete: owner or admin | `400 MESSAGE_TOO_LONG`, `429 RATE_LIMITED` |
 | `GET /matches/:id/history` | any | `[{turn, events:[...]}]` |
 | `GET /matches/:id/history/:turn` | any | `{turn, ownership:{[geoUnitId]:empireId|null}}` |
 
@@ -306,7 +316,6 @@ Server → client:
 - `{t:"match.update",matchId,kinds:string[]}` to the followers of a match when something in it changed (`kinds` hints at what: `match`, `empires`, `territories`, `resources`, `battles`, `battle.resolved`, `turn.closed`, `match.started`). It carries no data: the client reads `/state` again, so what a viewer may see is decided in one place
 - `{t:"match.online",matchId,connected}` to the followers of a match when the number of its players watching it changes
 - `{t:"battle.incoming",matchId,battleId}` only to the attacked player, when an attack on them is declared
-- from M10: `{t:"board",matchId,event}`
 
 "Online" = distinct users with a valid session and at least one open socket; guests are not counted. The same number is at `GET /api/stats/online`. Per match, "connected" = distinct users with an active empire in the match and a socket following it; the total is the number of active empires. Whether a user plays in a match is read once, when the socket subscribes.
 

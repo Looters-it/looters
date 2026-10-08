@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 9 (Strutture) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
+Stato: **milestone 10 (Bacheca) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
 
 ## Cosa esiste
 
@@ -246,6 +246,20 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 **Nell'interfaccia**: sotto "Il tuo impero" ci sono tre pagine con una barra comune: Risorse per comune, Unisci territori, Costruzioni. In "Unisci territori" e in "Costruzioni" i comuni si scelgono dall'elenco o toccandoli sulla mappa; quando l'operazione non è possibile il motivo è scritto.
 
+### Bacheca
+
+- Ogni partita ha una bacheca pubblica, leggibile da chiunque veda la partita (ospiti compresi), in ordine cronologico.
+- **Comunicazioni degli imperi**: messaggi di solo testo scritti dai giocatori a nome del proprio impero, mostrati con nome e stemma. Al massimo 500 caratteri, e un impero deve aspettare 20 secondi tra un messaggio e l'altro.
+- Può scrivere solo chi ha un impero ancora in gioco, finché la partita non è finita. Ospiti, spettatori e imperi caduti leggono soltanto.
+- Chi ha creato la partita e l'admin di piattaforma possono rimuovere i messaggi dei giocatori. Gli annunci automatici non si possono rimuovere.
+- **Annunci automatici**: creazione di un impero, annessione di un comune, esito di un conflitto (conquista, difesa riuscita o resa), creazione e rinomina di un'area, caduta di un impero, costruzione di una seconda capitale, spostamento della capitale, promozione della seconda capitale, inizio e fine della partita. Le alleanze si aggiungono con la milestone 11.
+- L'attacco viene annunciato solo a conflitto risolto. Blocchi militari e allerte di accumulo non vengono annunciati: si vedono in mappa.
+- Gli annunci non contengono mai quantità di risorse: solo nomi ed esiti.
+- Un annuncio che cita un comune ha un collegamento che centra la mappa su quel comune e lo seleziona.
+- La bacheca si filtra per tipo (comunicazioni, conflitti, annessioni, imperi, capitali, aree, alleanze, partita) e per impero.
+- Si aggiorna da sola quando succede qualcosa nella partita.
+- **Nell'interfaccia** è un pannello in basso a sinistra sopra la mappa: chiuso mostra l'ultimo annuncio e quanti sono nuovi, aperto si espande verso l'alto con i filtri, l'elenco e il campo per scrivere. Su telefono è la terza scheda in fondo.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
@@ -279,6 +293,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `blockCost`, `blockTurns`, `blockCooldownTurns` | 300, 5, 5 | costo, durata e pausa del blocco militare (§2.10) |
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
+| `boardMessageIntervalSec` | 20 | secondi di attesa tra due messaggi dello stesso impero (scelta provvisoria) |
 
 Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResources`, le quattro della dotazione nascosta, `incomeBase`, `incomePerUnit`, `annexCost`, `annexPerTurn`, le tre dell'attacco, `defensePct`, `surrenderRefundPct`, `capitalMoveEveryTurns`, le due dell'allerta di accumulo e le sei delle strutture; le altre sono definite e validate in attesa delle rispettive milestone.
 
@@ -337,5 +352,6 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 - **Isole**: i quattordici comuni senza confinanti vanno collegati a mano dall'admin, scegliendo a quali comuni della terraferma o di altre isole unirli.
 - **Limiti dei tentativi**: i valori (10 accessi falliti in 5 minuti, 10 registrazioni all'ora per indirizzo) sono una mia proposta: il brief chiede il limite ma non ne fissa i numeri.
 - **Contatori in memoria**: limiti dei tentativi e registro delle connessioni vivono nel processo `api`. Vanno spostati in uno store condiviso se `api` girerà in più istanze.
-- **Limite di frequenza dei messaggi in bacheca** (§2.11): il brief lo prevede ma non ne fissa il valore. Da decidere prima della milestone 10.
+- **Limite di frequenza dei messaggi in bacheca** (§2.11): il brief lo prevede ma non ne fissa il valore. Ho messo 20 secondi tra due messaggi dello stesso impero, configurabile per partita. Da confermare.
+- **Chi è nuovo in bacheca**: il conteggio dei "nuovi" è ricordato nel browser, non sul server: cambiando dispositivo riparte.
 - **Palette degli imperi** (§11): i colori attuali si distinguono poco; serve una palette dedicata prima del rilascio.
