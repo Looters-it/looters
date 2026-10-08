@@ -29,11 +29,16 @@ test.describe('homepage on a phone', () => {
     await page.screenshot({ path: test.info().outputPath('home.png'), fullPage: true })
   })
 
-  test('invites a guest to sign in from the hero', async ({ page }) => {
+  test('sends a guest from the hero to the sign-in page', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Accedi per giocare' }).click()
-    await expect(page.getByRole('dialog', { name: 'Accesso e registrazione' })).toBeVisible()
-    await expectTappable(page, ['Accedi per giocare'])
+    await page.getByRole('link', { name: 'Accedi per giocare' }).click()
+    // A page of its own for signing in and registering, inside the screen.
+    await expect(page).toHaveURL(/\/accesso$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Entra in Looters' })).toBeVisible()
+    await page.getByRole('tab', { name: 'Registrati' }).click()
+    await expect(page.getByLabel('Email')).toBeVisible()
+    await expectNoSidewaysScroll(page)
+    await page.screenshot({ path: test.info().outputPath('accesso.png'), fullPage: true })
   })
 
   test('offers a player to create a match, and shows the matches as cards in a row', async ({

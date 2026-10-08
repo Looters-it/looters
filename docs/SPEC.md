@@ -329,9 +329,15 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 ### Homepage
 
-- In alto una **grande hero**: a sinistra la mappa interattiva che mostra una **dimostrazione** (sei imperi inventati che annettono e si contendono comuni veri, con la cronaca dei messaggi in basso); a destra titolo, descrizione del gioco e il pulsante: "Crea una partita" per chi ha fatto l'accesso, "Accedi per giocare" per gli ospiti, che apre il pannello di accesso e registrazione.
+- In alto una **hero larga quanto la pagina**, tutta mappa: mostra una **dimostrazione** (sei imperi inventati che annettono e si contendono comuni veri, con la cronaca dei messaggi in basso a sinistra). Sulla destra la mappa **sfuma** nel colore della pagina e porta il titolo "Saccheggia i tuoi vicini!", il sottotitolo e il pulsante: "Crea una partita" per chi ha fatto l'accesso, "Accedi per giocare" per gli ospiti.
+- **Accesso e registrazione** hanno una pagina propria (`/accesso`), dove porta il pulsante degli ospiti; dopo l'accesso si torna alla homepage. Il pannello dell'account nella barra in alto resta.
 - La dimostrazione è dichiarata sulla mappa ("Dimostrazione: imperi inventati"), sceglie a ogni visita una zona diversa, si ferma quando la scheda non è in vista e resta immobile per chi ha chiesto meno animazioni. Non applica le regole del gioco: serve solo a far capire com'è.
-- Sotto, una fascia con le **partite in corso come card affiancate** che scorrono in orizzontale (prima "Le tue partite", se ce ne sono), con i filtri per nome e partecipanti e le pagine. Su telefono la mappa sta in cima e il testo sotto.
+- Sotto, una fascia con le **partite in corso come card affiancate** che scorrono in orizzontale (prima "Le tue partite", se ce ne sono), con i filtri per nome e partecipanti e le pagine. Su telefono la mappa sta in cima, sfumata verso il basso, e il testo sotto.
+
+### Colori
+
+- Palette scelta l'8 ottobre 2026: **blu scuro** (`#0b3954`) come colore primario (barra in alto, pulsanti principali), **magenta** (`#ee4266`) come secondario, per ciò che deve risaltare (il pulsante della hero, l'etichetta "la tua"), **azzurro-grigio** (`#99b2dd`) come sfondo delle card.
+- Sfondo della pagina, bordi e testo sono tinte chiare e scure della stessa palette, scelte da me; il rosso degli scontri è rimasto quello di prima. Sul magenta il testo è scuro, perché il bianco non si leggerebbe abbastanza.
 
 ### Interfaccia di partita
 
