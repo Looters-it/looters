@@ -283,6 +283,13 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - **Nell'interfaccia**: la voce "Storico dei turni" del menu elenca i turni dal più recente, una card richiudibile per turno con il numero di eventi; aperta, mostra gli eventi (quelli che citano un comune portano la mappa su quel comune) e il pulsante **Rivedi sulla mappa**.
 - **Revisione della mappa**: la mappa si colora con i proprietari di quel turno; una barra in alto a sinistra dice quale turno si sta guardando, con le frecce per il turno precedente e successivo e **Torna al presente**. Durante la revisione non si vedono capitali, strutture, aree, allerte e scontri (sono del presente) e un tocco su un comune dice solo di chi era allora.
 
+### Accessibilità
+
+- **Imperi distinguibili senza il colore**: ogni impero ha una **sigla** (le iniziali del nome senza articoli e preposizioni, al massimo tre lettere; se due imperi avrebbero la stessa, il secondo prende un numero: `DT`, `DT2`). La sigla è scritta sui comuni dell'impero in mappa, sotto il nome del comune, e accanto al nome dell'impero in classifica. Il pulsante "Sigle degli imperi" sopra la mappa le nasconde; la scelta viene ricordata sul dispositivo. Restano lo stemma e il nome dell'impero nella scheda di ogni comune.
+- **Senza puntatore**: nel menu della partita "Cerca un comune" trova un comune per nome (da due lettere, prima quelli che iniziano così) e lo seleziona come un tocco sulla mappa. Il primo Tab di ogni pagina è "Vai al contenuto", che salta la barra in alto. La mappa, quando ha il fuoco, si sposta con le frecce e si ingrandisce con più e meno.
+- **Contrasto**: testi e pulsanti rispettano il rapporto 4,5:1 (WCAG AA), i contorni di fuoco 3:1. I pulsanti verdi e rossi al passaggio del mouse ora si scuriscono invece di schiarirsi, perché schiariti scendevano sotto la soglia.
+- Le animazioni della mappa si fermano se il dispositivo chiede movimento ridotto.
+
 ### Errori imprevisti
 
 - Se una pagina si rompe, il giocatore non vede una schermata bianca: la barra in alto resta, compare "Qualcosa si è rotto" con il pulsante per ricaricare e il collegamento alla homepage. L'errore viene segnalato da solo al server.
@@ -354,6 +361,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Accessibilità, scelte da confermare** `[ASSUNZIONE]`: le sigle in mappa sono attive per tutti finché non le si spegne; il colore dei pulsanti al passaggio del mouse è cambiato rispetto al tema del prototipo (più scuro anziché più chiaro). Non verificato: lettura reale con uno screen reader e contrasto dei colori degli imperi tra loro, che dipende dalla palette per 100 imperi (M0-11).
 
 - **Backup** `[ASSUNZIONE]`: un backup al giorno, tenendo gli ultimi 14, salvati in una cartella della stessa macchina; la copia fuori sede e la cifratura dipendono da dove verrà ospitato il gioco e non sono impostate. Con un backup al giorno, un guasto può far perdere fino a un giorno di partita.
 

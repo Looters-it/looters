@@ -212,6 +212,13 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
 
+## Accessibility
+
+- **Automated checks** (`web`): `src/test/a11y.ts` runs axe (WCAG 2.1 A and AA, best practices) on a rendered page; `src/app/a11y.test.tsx` applies it to the homepage, the account panel, the new-match form and every page of the match panel. A new page gets a line there.
+- **Contrast** cannot be judged in jsdom, so it is checked where colours are defined: `src/styles/contrast.test.ts` reads `theme.css`, resolves `var()` and `color-mix()`, and asserts the ratio of every text/ground pair in use. A new token pair gets a row there.
+- **Not by colour alone**: `features/game/tags.ts` (`empireTags`) derives a short unique tag per empire; `MatchPage` turns ownership into `ownerTags` for `GameMap`, which draws them from the `owners` GeoJSON source as the `owner-tags` symbol layer, placed after names and signs so those win collisions. Works in the turn review too.
+- **Keyboard**: `features/game/UnitSearch.tsx` selects a municipality by name through the same path as a tap on the map; `Layout` starts with a skip link to `main#contenuto`; the map canvas has an accessible name and MapLibre's keyboard handler (rotation disabled).
+
 ## Logs and error tracking
 
 Both services write one JSON object per line on standard output; the container runtime collects them. No external tracker is wired in: every line that matters carries a stable `event` field, which is what a log collector searches and alerts on.
