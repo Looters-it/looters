@@ -2,7 +2,7 @@
 # Replaces the database and the uploaded geo files with a backup from ./backups.
 #
 #   scripts/restore.sh latest                 the newest backup
-#   scripts/restore.sh gioco-<ts>.dump        a given one
+#   scripts/restore.sh looters-<ts>.dump        a given one
 #   scripts/restore.sh --verify latest        only checks that it restores, changes nothing
 #
 # The game is stopped while it runs: api and jobs are stopped and started again.

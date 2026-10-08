@@ -7,6 +7,6 @@ DROP EXTENSION IF EXISTS fuzzystrmatch;
 DROP SCHEMA IF EXISTS tiger_data;
 
 -- Separate database for integration tests (api and jobs).
-CREATE DATABASE gioco_test;
-\connect gioco_test
+CREATE DATABASE looters_test;
+\connect looters_test
 CREATE EXTENSION IF NOT EXISTS postgis;

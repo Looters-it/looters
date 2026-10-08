@@ -1,20 +1,24 @@
 # One command starts everything: docker compose up --build
 # Game at http://localhost:8080 (web proxies /api and /ws to the api).
+# The project name: containers, volumes and network are called looters-*, wherever the
+# directory is.
+name: looters
+
 services:
   db:
     # Multi-architecture build of the PostGIS image (the official one is amd64 only) with
     # GEOS 3.13, needed by ST_CoverageSimplify to simplify borders without opening gaps.
     image: imresamu/postgis:16-3.5-alpine
     environment:
-      POSTGRES_USER: gioco
-      POSTGRES_PASSWORD: gioco
-      POSTGRES_DB: gioco
+      POSTGRES_USER: looters
+      POSTGRES_PASSWORD: looters
+      POSTGRES_DB: looters
     ports: ["5433:5432"]
     volumes:
       - dbdata:/var/lib/postgresql/data
-      - ./db/init/20-gioco.sql:/docker-entrypoint-initdb.d/20-gioco.sql:ro
+      - ./db/init/20-looters.sql:/docker-entrypoint-initdb.d/20-looters.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gioco -d gioco"]
+      test: ["CMD-SHELL", "pg_isready -U looters -d looters"]
       interval: 3s
       timeout: 3s
       retries: 30
@@ -62,7 +66,7 @@ services:
   api:
     build: ./api
     environment:
-      DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
+      DATABASE_URL: postgresql://looters:looters@db:5432/looters
       KAFKA_BROKERS: kafka:9092
       LOG_LEVEL: ${LOG_LEVEL:-info}
       KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
@@ -89,7 +93,7 @@ services:
   jobs:
     build: ./jobs
     environment:
-      DATABASE_URL: postgresql://gioco:gioco@db:5432/gioco
+      DATABASE_URL: postgresql://looters:looters@db:5432/looters
       KAFKA_BROKERS: kafka:9092
       LOG_LEVEL: ${LOG_LEVEL:-info}
       KAFKA_BATTLE_TOPIC: ${KAFKA_BATTLE_TOPIC:-battle.resolve}
@@ -116,9 +120,9 @@ services:
     restart: unless-stopped
     environment:
       PGHOST: db
-      PGUSER: gioco
-      PGPASSWORD: gioco
-      PGDATABASE: gioco
+      PGUSER: looters
+      PGPASSWORD: looters
+      PGDATABASE: looters
       BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
     volumes:

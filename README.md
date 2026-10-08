@@ -1,4 +1,4 @@
-# Gioco di conquista dei comuni
+# Looters
 
 Cartella radice del progetto: contiene i tre repository dei servizi, il `docker-compose.yml` e la documentazione condivisa.
 
@@ -24,7 +24,7 @@ docker compose up --build
 
 - Gioco: <http://localhost:8080>
 - API: <http://localhost:3000/api/health/ready>
-- PostgreSQL: `localhost:5433` (utente, password e database `gioco`)
+- PostgreSQL: `localhost:5433` (utente, password e database `looters`)
 - Kafka: `localhost:29092`
 
 All'avvio `api` applica le migrazioni e crea l'admin di piattaforma; `jobs` parte quando `api` è pronta. La homepage mostra lo stato dei servizi.
@@ -49,10 +49,10 @@ Gli script di `api` leggono da soli il file `.env`; `jobs` legge solo le variabi
 
 ### Test di integrazione
 
-I test che usano database e Kafka si attivano con `TEST_DATABASE_URL` e `TEST_KAFKA_BROKERS` (vedi i `.env.example`); senza queste variabili vengono saltati. Il database `gioco_test` viene creato da `db/init/`, e va migrato una volta:
+I test che usano database e Kafka si attivano con `TEST_DATABASE_URL` e `TEST_KAFKA_BROKERS` (vedi i `.env.example`); senza queste variabili vengono saltati. Il database `looters_test` viene creato da `db/init/`, e va migrato una volta:
 
 ```sh
-cd api && DATABASE_URL=postgresql://gioco:gioco@localhost:5433/gioco_test pnpm db:deploy
+cd api && DATABASE_URL=postgresql://looters:looters@localhost:5433/looters_test pnpm db:deploy
 ```
 
 ### Test con l'Italia intera
@@ -60,7 +60,7 @@ cd api && DATABASE_URL=postgresql://gioco:gioco@localhost:5433/gioco_test pnpm d
 Il test di `jobs` su tutti i comuni italiani si attiva indicando un GeoJSON con i loro confini, per esempio quello di [openpolis/geojson-italy](https://github.com/openpolis/geojson-italy) (`geojson/limits_IT_municipalities.geojson`):
 
 ```sh
-cd jobs && GEO_ITALY_FILE=/percorso/comuni.geojson TEST_DATABASE_URL=postgresql://gioco:gioco@localhost:5433/gioco_test go test -run TestRealBoundariesOfItaly ./internal/geoprocess
+cd jobs && GEO_ITALY_FILE=/percorso/comuni.geojson TEST_DATABASE_URL=postgresql://looters:looters@localhost:5433/looters_test go test -run TestRealBoundariesOfItaly ./internal/geoprocess
 ```
 
 Lo stesso file si può caricare dalla dashboard admin (<http://localhost:8080/admin>, scheda "Dati geografici") dopo aver creato l'area "Italia".
@@ -88,19 +88,19 @@ Mettere il gioco su un server e aggiornarlo: [`docs/RILASCIO.md`](docs/RILASCIO.
 
 ## Backup e ripristino
 
-Un backup è una coppia di file in `./backups` con lo stesso orario (UTC): `gioco-<data>-<ora>.dump` (il database, formato `pg_dump -Fc`) e `gioco-<data>-<ora>.uploads.tgz` (i file geografici caricati dall'admin). Insieme bastano a ricostruire tutto: Kafka non va salvato, perché uno scontro la cui richiesta va persa viene comunque risolto alla chiusura del turno.
+Un backup è una coppia di file in `./backups` con lo stesso orario (UTC): `looters-<data>-<ora>.dump` (il database, formato `pg_dump -Fc`) e `looters-<data>-<ora>.uploads.tgz` (i file geografici caricati dall'admin). Insieme bastano a ricostruire tutto: Kafka non va salvato, perché uno scontro la cui richiesta va persa viene comunque risolto alla chiusura del turno.
 
 | Cosa | Comando |
 | --- | --- |
 | Un backup adesso | `./scripts/backup.sh` |
 | Backup periodici | `docker compose --profile backup up -d backup` (ogni `BACKUP_INTERVAL_HOURS`, 24 se non indicato; restano gli ultimi `BACKUP_KEEP`, 14) |
 | Controllare che un backup si ripristini, senza toccare nulla | `./scripts/restore.sh --verify latest` |
-| Ripristinare | `./scripts/restore.sh latest` oppure `./scripts/restore.sh gioco-<data>-<ora>.dump` |
+| Ripristinare | `./scripts/restore.sh latest` oppure `./scripts/restore.sh looters-<data>-<ora>.dump` |
 
-**Cosa fa il ripristino.** Chiede conferma, ferma `api` e `jobs`, ricostruisce il backup in un database nuovo e solo se riesce lo mette al posto di quello in uso; poi rimette i file caricati e riavvia i servizi. Il database di prima **non viene cancellato**: resta come `gioco_before_restore_<data>`, e si elimina a mano quando si è sicuri:
+**Cosa fa il ripristino.** Chiede conferma, ferma `api` e `jobs`, ricostruisce il backup in un database nuovo e solo se riesce lo mette al posto di quello in uso; poi rimette i file caricati e riavvia i servizi. Il database di prima **non viene cancellato**: resta come `looters_before_restore_<data>`, e si elimina a mano quando si è sicuri:
 
 ```sh
-docker compose exec db psql -U gioco -d postgres -c 'DROP DATABASE "gioco_before_restore_<data>"'
+docker compose exec db psql -U looters -d postgres -c 'DROP DATABASE "looters_before_restore_<data>"'
 ```
 
 **Dopo un ripristino** il gioco riparte dallo stato del backup: le mosse fatte dopo sono perse, le sessioni dei giocatori restano valide e i turni scaduti nel frattempo vengono chiusi da `jobs` appena riparte.

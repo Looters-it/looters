@@ -12,7 +12,7 @@ Come mettere il gioco in produzione su un server e come aggiornarlo. Vale per un
 ## Primo avvio
 
 ```sh
-git clone <repository radice> gioco && cd gioco
+git clone <repository radice> looters && cd looters
 git clone <repository api> api
 git clone <repository jobs> jobs
 git clone <repository web> web
@@ -90,7 +90,7 @@ Nei log le righe da tenere d'occhio hanno un campo `event` (`docs/ARCHITECTURE.m
 | Backup adesso, verifica, ripristino | `./scripts/backup.sh`, `./scripts/restore.sh --verify latest`, `./scripts/restore.sh <file>` (README, "Backup e ripristino") |
 | Portare i backup fuori dal server | copiare `./backups` altrove con lo strumento che si usa già (rsync, uno storage a oggetti): **non è automatico** |
 | Cambiare la password dell'admin | cambiarla in `.env`, poi `dc up -d api` |
-| Cambiare la password del database | `dc exec db psql -U gioco -c "ALTER USER gioco PASSWORD '<nuova>'"`, poi la stessa in `.env` e `dc up -d` (quella di `.env` da sola vale solo alla creazione del volume) |
+| Cambiare la password del database | `dc exec db psql -U looters -c "ALTER USER looters PASSWORD '<nuova>'"`, poi la stessa in `.env` e `dc up -d` (quella di `.env` da sola vale solo alla creazione del volume) |
 | Più scontri risolti in parallelo | aumentare `KAFKA_BATTLE_PARTITIONS` in `.env`, poi `dc up -d` (si può solo aumentare) |
 | Fermare tutto senza perdere dati | `dc down` (i dati stanno nei volumi; `dc down -v` li **cancella**) |
 | Provare la configurazione su una macchina | `DOMAIN=localhost` in `.env`: il certificato è firmato da Caddy stesso e il browser avvisa |

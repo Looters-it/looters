@@ -7,11 +7,11 @@
 #   backup.sh verify <name>   restores a backup into a scratch database and drops it
 #   backup.sh restore <name>  replaces the database (and the uploads) with a backup
 #
-# A backup is two files in /backups with the same timestamp: `gioco-<ts>.dump`
-# (pg_dump custom format) and `gioco-<ts>.uploads.tgz` (the geo files of the admin).
+# A backup is two files in /backups with the same timestamp: `looters-<ts>.dump`
+# (pg_dump custom format) and `looters-<ts>.uploads.tgz` (the geo files of the admin).
 set -eu
 
-DB=${PGDATABASE:-gioco}
+DB=${PGDATABASE:-looters}
 DIR=/backups
 UPLOADS=/data/uploads
 KEEP=${BACKUP_KEEP:-14}
