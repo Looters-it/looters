@@ -115,6 +115,18 @@ docker compose exec db psql -U looters -d postgres -c 'DROP DATABASE "looters_be
 
 **Da ricordare.** `./backups` sta sulla stessa macchina del database: va copiata altrove (un altro server, uno storage a oggetti) con lo strumento che si preferisce, altrimenti non protegge dalla perdita del disco. Conviene lanciare `--verify` ogni tanto: un backup mai provato non è un backup. Su una macchina nuova: `docker compose up -d db`, copiare i due file in `./backups`, poi `./scripts/restore.sh <file>`.
 
+### Test end-to-end su telefono
+
+`e2e/` prova lo stack avviato con un browser vero alle dimensioni di un telefono (due schermi: 412×915 e 360×640): homepage, accesso, ogni pagina del pannello di partita, ricerca e annessione di un comune, tocco sulla mappa, bacheca, inglese. Ogni schermata viene controllata perché nulla sbordi di lato e perché i comandi siano abbastanza grandi per un dito; le immagini restano in `e2e/test-results/`.
+
+```sh
+docker compose up -d
+cd e2e && pnpm install && pnpm exec playwright install chromium   # la prima volta
+pnpm test
+```
+
+I test caricano da soli la provincia di Milano (se manca), creano due utenti e una partita di prova, e alla fine li cancellano. **Ogni modifica all'interfaccia va accompagnata dal suo test qui.**
+
 ### Integrazione continua
 
 Ogni repository ha il suo `.github/workflows/ci.yml` (GitHub Actions), che parte a ogni push su `main` e a ogni pull request:
@@ -124,5 +136,7 @@ Ogni repository ha il suo `.github/workflows/ci.yml` (GitHub Actions), che parte
 | `api` | formattazione, lint, tipi, test (con PostGIS e Kafka veri, migrati da zero), build |
 | `jobs` | `gofmt`, `go vet`, test (con PostGIS e Kafka veri, schema da `testdata/schema.sql`), build |
 | `web` | formattazione, lint, tipi, test, build |
+
+Questo repository ha in più `.github/workflows/e2e.yml`, che costruisce lo stack dai quattro repository e lancia i test end-to-end su telefono.
 
 In CI i test di integrazione non vengono saltati: le variabili `TEST_DATABASE_URL` e `TEST_KAFKA_BROKERS` sono sempre impostate. Il controllo `--check` delle copie di `jobs` non può girare in CI, perché i repository sono separati: va lanciato a mano prima di un commit che tocca migrazioni o regole.

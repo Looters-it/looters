@@ -2,7 +2,7 @@
 
 Questo file descrive **solo ciò che il codice fa oggi**. Le regole di progetto, comprese quelle non ancora sviluppate, sono in `../../PROMPT.md`; il contratto tecnico tra i servizi è in `ARCHITECTURE.md`. Va aggiornato alla chiusura di ogni milestone.
 
-Stato: **milestone 10 (Bacheca) completata.** Una partita avanza turno dopo turno: gli imperi guadagnano risorse, annettono i comuni liberi e si attaccano tra loro. Perdere la capitale fa cadere l'impero, e la partita finisce con un vincitore.
+Stato: **tutte le milestone completate**, più le attività trasversali e le decisioni dell'8 ottobre 2026 (bot, alleanze a coppie, logo, ritiro, inglese). Il gioco si chiama **Looters**, nome ancora provvisorio.
 
 ## Cosa esiste
 
@@ -63,6 +63,8 @@ Stato: **milestone 10 (Bacheca) completata.** Una partita avanza turno dopo turn
 
 Verifica sui confini reali di tutti i comuni italiani (7.896): elaborati in circa 20 secondi, 22.811 confini. Restano senza confinanti solo Campione d'Italia e tredici comuni insulari (Capraia Isola, Carloforte, Favignana, Isola del Giglio, Isole Tremiti, La Maddalena, Lampedusa e Linosa, Lipari, Pantelleria, Ponza, Procida, Ustica, Ventotene): sono i casi da collegare a mano.
 
+- **Isole**: i comuni che nessun confine raggiunge vengono **segnalati al caricamento**: ogni file dice quanti ne contiene e lo strumento "Comuni confinanti" li elenca, pronti da collegare a mano. Finché non sono collegati, in partita non si possono né annettere né attaccare.
+
 ### Mappa
 
 - La mappa mostra OpenStreetMap, attenuata, con sopra i confini dei comuni. I comuni liberi sono semitrasparenti e lasciano leggere la mappa sottostante; quelli di un impero sono a colore pieno.
@@ -105,7 +107,8 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 - All'ora di inizio la partita parte da sola: passa al turno 1 e la fine del turno viene calcolata dall'ora di inizio prevista.
 - Le capitali scelte prima dell'inizio sono protette fino alla fine del turno 1. Chi entra a partita iniziata è protetto fino alla fine del turno in cui entra.
-- Servono almeno 2 imperi (regola della partita). Con meno, all'ora di inizio non succede nulla: la partita resta con le iscrizioni aperte e chi l'ha creata può fissare una nuova data.
+- **Basta un impero** per partire (regola della partita, che chi la crea può alzare): gli altri possono essere bot, oppure si gioca da soli. Con meno imperi di quelli richiesti, all'ora di inizio non succede nulla: la partita resta con le iscrizioni aperte e chi l'ha creata può fissare una nuova data.
+- **Ritiro**: finché la partita non è iniziata, un iscritto può ritirarsi. Il suo impero viene cancellato e il comune di partenza torna libero con una **nuova** dotazione nascosta. Può iscriversi di nuovo, anche da un altro comune. A partita iniziata non ci si ritira più.
 
 **Cosa vede chi**
 
@@ -129,7 +132,7 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Le risorse di un impero stanno sui suoi territori: non esiste una cassa centrale e il totale è sempre la somma dei territori.
 - **Guadagno per turno**: 50 più 10 per ogni comune controllato (regole della partita).
 - **Ripartizione del guadagno**: è una regola permanente dell'impero. "In parti uguali" divide il guadagno tra i territori; "in proporzione" lo divide secondo un peso per territorio, fissato dal giocatore con le risorse che ogni comune ha nel momento in cui sceglie questa regola. Gli importi sono interi e il resto va alla capitale.
-- Un comune acquisito dopo aver scelto la proporzione ha peso 1, quindi riceve molto poco finché il giocatore non riapplica la regola.
+- Un comune appena acquisito, per annessione o conquista, prende come peso la **media dei pesi** degli altri territori dell'impero, così riceve una quota simile alla loro finché il giocatore non la cambia.
 - **Spostamento**: il giocatore può ridistribuire le risorse tra i propri territori in qualsiasi momento; il totale non cambia. Un territorio coinvolto in uno scontro è bloccato.
 - Nella scheda "Risorse per comune" ogni comune ha uno slider. In cima ci sono i comuni, le risorse totali e quelle non allocate. Abbassare un comune libera risorse; un comune può salire solo di quanto è stato liberato. "Dividi in parti uguali" e "Annulla" agiscono sulla bozza; nulla viene salvato finché non si preme "Applica", attivo solo quando le non allocate sono zero.
 
@@ -182,6 +185,8 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Da quali comuni parte un attacco lo sa solo l'attaccante.
 - La voce "Scontri" del menu elenca gli scontri in corso e, per i due imperi coinvolti, quelli conclusi nel turno corrente e nel precedente.
 
+- **Da dove parte un attacco è pubblico**, come il suo bersaglio: tutti vedono quali comuni attaccano, anche quando sono più d'uno, nell'elenco degli scontri e nell'avviso al difensore. Restano nascosti forze, costi e risorse.
+
 ### Capitale, caduta e vittoria
 
 **Capitale**
@@ -208,6 +213,8 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Sparisce alla prima chiusura in cui il comune è tornato sotto la soglia.
 - Vale solo per gli imperi con almeno 3 territori.
 - La verifica avviene alla chiusura del turno, dopo il guadagno.
+
+- **Parità alla scadenza**: se due o più imperi hanno le stesse risorse e gli stessi comuni, **vincono insieme**. La partita si chiude con più vincitori, tutti indicati in classifica e nell'annuncio.
 
 ### Strutture
 
@@ -246,6 +253,8 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 **Nell'interfaccia**: sotto "Il tuo impero" ci sono tre pagine con una barra comune: Risorse per comune, Unisci territori, Costruzioni. In "Unisci territori" e in "Costruzioni" i comuni si scelgono dall'elenco o toccandoli sulla mappa; quando l'operazione non è possibile il motivo è scritto.
 
+- **Blocchi**: un blocco militare protegge un comune, non un'area. Se si unisce un comune sotto blocco, il blocco viene **cancellato** senza rimborso; prima di confermare la fusione il giocatore riceve un avviso che lo dice.
+
 ### Bacheca
 
 - Ogni partita ha una bacheca pubblica, leggibile da chiunque veda la partita (ospiti compresi), in ordine cronologico.
@@ -262,18 +271,30 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 ### Alleanze
 
-- Un impero propone un'alleanza a un altro impero in gioco; chi la riceve accetta o rifiuta, chi l'ha fatta può ritirarla. Chi è già in un'alleanza, proponendo, invita il terzo nella propria: basta l'accordo di chi invita e di chi è invitato.
-- Un impero fa parte di **una sola alleanza**, che ha al massimo **3 membri** (configurabile). Non si può invitare un impero che è già in un'alleanza, né accettare se nel frattempo l'alleanza si è riempita o chi ha proposto ne è uscito o ha cambiato alleanza.
-- Non ci si può alleare con qualcuno con cui è in corso uno scontro: prima lo scontro si chiude.
-- **Gli alleati non possono attaccarsi.** Il divieto vale dal momento dell'accettazione fino all'uscita effettiva.
-- **Uscita**: è unilaterale e ha effetto alla **fine del turno successivo** a quello in cui viene annunciata (preavviso configurabile). Fino ad allora chi esce resta alleato a tutti gli effetti: non può attaccare né essere attaccato dagli alleati, vede e fa vedere le risorse. Chi ha annunciato l'uscita non può invitare altri. L'annuncio è visibile a tutti nella scheda dell'alleanza e non si ritira.
-- Un'alleanza rimasta con un solo membro, per un'uscita o per la caduta di un impero, si scioglie.
-- **Risorse visibili**: gli alleati vedono le risorse dei territori l'uno dell'altro, in mappa, nelle schede dei comuni e nella vista "Risorse". Dopo l'uscita effettiva tornano nascoste.
-- **Trasferimenti**: un impero può mandare risorse da un proprio territorio a un territorio di un alleato, subito, senza limite di distanza. Non si può mandare da o verso un territorio coinvolto in uno scontro: l'aiuto tra alleati è solo preventivo.
-- **Chat di alleanza**: privata, la leggono e ci scrivono solo i membri attuali; chi entra legge anche i messaggi precedenti, chi esce non la vede più.
-- **L'alleanza non vince**: il vincitore è sempre un solo impero. Se alla fine restano solo imperi alleati, la partita continua fino alla scadenza o finché uno conquista le capitali degli altri, dopo essere uscito.
-- Chi è alleato con chi è **pubblico**: lo vedono tutti, anche ospiti e spettatori. Le proposte in attesa le vedono solo chi le ha fatte e chi le ha ricevute.
-- **Nell'interfaccia**: la voce "Alleanza" del menu dell'impero raccoglie membri, proposte, invito, trasferimento, chat e uscita (con conferma). Sulla mappa un selettore in alto a sinistra cambia vista: **Politica** (colore dell'impero), **Alleanze** (un colore per alleanza, neutro per chi non ne ha) e **Risorse** (tono più scuro dove ci sono più risorse, solo sui territori propri e degli alleati).
+- Un'alleanza è un **patto tra due imperi**. Non forma un gruppo: A può essere alleato di B e di C senza che B e C siano alleati tra loro.
+- Un impero propone, l'altro accetta o rifiuta; chi ha proposto può ritirare la proposta. Un impero può avere al massimo **2 alleati** (configurabile). Non ci si può alleare con qualcuno con cui è in corso uno scontro.
+- **Gli alleati non possono attaccarsi**, vedono le risorse l'uno dell'altro (in mappa, nelle schede dei comuni, nella vista "Risorse") e possono **mandarsi risorse**, subito, senza limite di quantità né di distanza. Non si può mandare da o verso un comune coinvolto in uno scontro. Tutto questo vale solo tra i due del patto: l'alleato di un alleato è un estraneo.
+- **Fine**: uno dei due la annuncia; ha effetto alla **fine del turno successivo** (preavviso configurabile) e fino ad allora i due restano alleati a tutti gli effetti. Chi l'ha annunciata può **ritirare l'annuncio** finché non ha avuto effetto; l'altro no.
+- Se un impero cade, i suoi patti finiscono con lui.
+- **Chat**: ogni patto ha la sua, privata tra i due.
+- Chi è alleato con chi è **pubblico**; le proposte in attesa le vedono solo i due interessati. Nascita, annuncio di fine, ripensamento e fine effettiva compaiono in bacheca.
+- **L'alleanza non vince**: il vincitore è sempre un impero (o più imperi in parità).
+- **Nell'interfaccia**: la voce "Alleanze" elenca gli alleati, ciascuno con la sua chat e il suo "Termina l'alleanza" (o "Annulla la fine"), poi proposte, invio di risorse. Sulla mappa la vista **Alleanze** mostra a colori il giocatore e i suoi alleati e in tono neutro tutti gli altri.
+
+### Bot
+
+- Chi crea la partita può aggiungere **imperi bot**, guidati dal gioco. È un'opzione nel modulo di creazione; nelle regole si decide quanti al massimo (5) e con che probabilità ne nasce uno a ogni turno (30%).
+- Un bot **nasce all'inizio di un turno su un comune libero**, vicino agli imperi che ci sono già (a due comuni di distanza, senza toccarli), con le stesse risorse iniziali di un giocatore. La sua nascita è annunciata in bacheca come quella di ogni impero.
+- Gioca **con le stesse regole di un giocatore** e vede solo ciò che vedrebbe un giocatore al suo posto: non conosce le risorse altrui. A ogni turno annette i comuni liberi vicini finché il turno lo permette, attacca un vicino circa un turno su due, ogni tanto costruisce un blocco sulla capitale, accetta metà delle proposte di alleanza. Quando viene attaccato risponde entro pochi secondi: difende quasi sempre, ogni tanto cede un comune, mai la capitale.
+- Un bot può cadere e può vincere, come chiunque.
+- In classifica è segnato con l'**icona Bot** al posto del nome del giocatore.
+- Non fa (per ora): fusioni, seconda capitale, spostamento di risorse, proposte di alleanza, messaggi in bacheca.
+
+### Logo e stemma
+
+- Ogni giocatore può **caricare un logo** per il proprio impero: un'immagine PNG, JPEG o WebP di al massimo 200 KB. Prende il posto dello stemma ovunque: classifica, schede, bacheca, e sulla **capitale in mappa**, dove ogni impero mostra il suo stemma o il suo logo su un disco del suo colore, con il nome sotto.
+- Il logo si può cambiare o togliere anche a partita in corso. Lo vedono tutti.
+- Chi ha creato la partita e l'admin possono **rimuovere il logo** di qualunque impero, dalla classifica.
 
 ### Storico dei turni
 
@@ -290,8 +311,8 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 ### Lingua
 
-- L'interfaccia è in italiano. È predisposta per altre lingue, ma **nessuna seconda lingua è ancora presente**: finché ce n'è una sola non compare alcuna scelta.
-- Quando ce ne sarà una seconda, la scelta "Lingua" comparirà nel pannello dell'account (anche senza aver fatto l'accesso). All'inizio vale la lingua del browser, se disponibile, altrimenti l'italiano; la scelta fatta viene ricordata sul dispositivo. Ciò che una traduzione non copre ancora compare in italiano.
+- L'interfaccia è in **italiano e in inglese**. La scelta "Lingua" è nel pannello dell'account, anche senza aver fatto l'accesso.
+- All'inizio vale la lingua del browser, se è una delle due, altrimenti l'italiano; la scelta fatta viene ricordata sul dispositivo. Ciò che una traduzione non copre compare in italiano.
 - I nomi dei comuni, degli imperi e i messaggi dei giocatori non vengono tradotti.
 
 ### Accessibilità
@@ -373,47 +394,27 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
-- **Seconda lingua** `[ASSUNZIONE]`: è pronta la struttura, non una traduzione: quale lingua aggiungere e chi la traduce resta da decidere. La scelta della lingua è ricordata sul dispositivo e non nell'account del giocatore.
+Decisi l'8 ottobre 2026 e non più aperti: giocatori minimi e bot, iscrizioni a partita iniziata, ritiro, durata minima del turno, origine degli attacchi pubblica, protezione dopo la conquista, rimborso degli scontri annullati, parità, blocco e fusione, peso dei comuni nuovi, alleanze a coppie, limiti dei trasferimenti, bacheca, storico pubblico, connessi, limiti dei tentativi, isole, seconda capitale, logo, inglese.
 
-- **Produzione** `[ASSUNZIONE]`: un solo server con Docker Compose e HTTPS automatico (Caddy); nessuna scelta su fornitore di hosting, monitoraggio, copia dei backup fuori sede e fornitore della mappa di base, che restano da decidere (`docs/RILASCIO.md`, "Limiti").
+**Regole**
 
-- **Carico** `[ASSUNZIONE]`: provato con 100 giocatori sull'Italia intera su un portatile (`docs/LOAD.md`), non su una macchina di produzione né per ore di fila. Il ritardo massimo di un secondo sugli aggiornamenti degli altri è una scelta di prestazioni, regolabile (`MATCH_UPDATE_WINDOW_MS`).
+- **Ultimo impero rimasto in una partita con scadenza**: la partita finisce subito e quell'impero vince. Non confermato in modo esplicito. Con i bot attivi vale lo stesso: se resta un solo impero la partita finisce, anche se altri bot sarebbero potuti nascere.
+- **Bot** `[ASSUNZIONE]`: quanti, quanto spesso e come giocano sono una prima proposta (vedi "Bot"); in particolare nascono vicino agli imperi esistenti e non fanno fusioni, trasferimenti né proposte di alleanza.
+- **Alleati massimi per impero** `[ASSUNZIONE]`: 2, configurabile.
+- **Logo** `[ASSUNZIONE]`: si può cambiare anche a partita in corso; nessun controllo automatico del contenuto, solo la rimozione da parte di chi ha creato la partita o dell'admin.
+- **Soglie dei confini**: due comuni sono confinanti se condividono almeno 50 metri di confine, tollerando 5 metri di scarto tra i tracciati. Proposta mia, configurabile; sull'Italia intera dà il risultato atteso.
 
-- **Accessibilità, scelte da confermare** `[ASSUNZIONE]`: le sigle in mappa sono attive per tutti finché non le si spegne; il colore dei pulsanti al passaggio del mouse è cambiato rispetto al tema del prototipo (più scuro anziché più chiaro). Non verificato: lettura reale con uno screen reader e contrasto dei colori degli imperi tra loro, che dipende dalla palette per 100 imperi (M0-11).
+**Interfaccia**
 
-- **Backup** `[ASSUNZIONE]`: un backup al giorno, tenendo gli ultimi 14, salvati in una cartella della stessa macchina; la copia fuori sede e la cifratura dipendono da dove verrà ospitato il gioco e non sono impostate. Con un backup al giorno, un guasto può far perdere fino a un giorno di partita.
+- **Palette degli imperi**: i 120 colori sono generati e oltre una dozzina di imperi si confondono; resta così per ora.
+- **Telefono**: coperto da test automatici su due dimensioni di schermo (`e2e/`), non ancora provato su un dispositivo reale.
+- **Scudo del comune protetto**: la protezione è scritta nella scheda del comune, non disegnata in mappa.
+- **Storico**: una partita con moltissimi turni li elenca tutti, senza paginazione. La revisione della mappa mostra solo di chi era ogni comune, non capitali, aree e strutture di allora.
+- **Nuovi in bacheca** e **lingua scelta**: ricordati nel browser, non nell'account.
+- **Accessibilità**: non provata con uno screen reader reale.
+- **Inglese**: tradotto da Claude, non riletto da un madrelingua.
 
-- **Tracciamento degli errori** `[ASSUNZIONE]`: gli errori finiscono nei log strutturati dei container, con un campo `event` su cui cercare e impostare allarmi; non è collegato nessun servizio esterno (Sentry o simili) né un raccoglitore di log, che dipendono da dove verrà ospitato il gioco.
+**Produzione** (rimandata)
 
-- **Storico, scelte da confermare** `[ASSUNZIONE]`: lo storico è pubblico (anche per ospiti); i messaggi dei giocatori non ne fanno parte; la revisione mostra solo la proprietà dei comuni, non capitali, aree e strutture di allora; una partita con moltissimi turni li elenca tutti, senza paginazione.
-
-- **Alleanze, scelte da confermare** `[ASSUNZIONE]`: per far entrare un terzo impero basta l'invito di un solo membro, senza il consenso dell'altro; l'annuncio di uscita non si può ritirare; i trasferimenti tra alleati non hanno limite di quantità né di distanza; alleati e proposte accettate sono pubblici, mentre le proposte in attesa sono private; il colore di un'alleanza in mappa è quello del suo primo membro.
-
-- **Spostamento della seconda capitale**: esiste nelle API ma non ha ancora un pulsante nell'interfaccia.
-- **Blocco militare e fusione**: se si unisce un comune sotto blocco, il blocco passa all'intera area. Il brief non copre il caso.
-- **Geometria delle aree**: la calcola PostGIS su richiesta dentro `api`, non un job in `jobs` come indicato nel backlog (M9-05): le aree sono poche e piccole.
-- **Ultimo impero rimasto in una partita con scadenza**: la faccio finire subito, anche se il brief cita questa regola solo per le partite senza scadenza. Da confermare.
-- **Parità totale alla scadenza** (stesse risorse e stessi comuni): vince chi si è iscritto prima. Il brief non lo dice.
-- **Scontri annullati alla caduta di un impero**: il costo dell'attacco viene restituito per intero. Il brief non copre il caso.
-- **Stemma sulla capitale**: il segnaposto è un disco colorato, non lo stemma dell'impero come da §2.8.
-- **Protezione di un comune conquistato alla chiusura del turno**: l'ho estesa a tutto il turno successivo, perché "fino alla fine del turno" appena chiuso non proteggerebbe nulla. Da confermare.
-- **Chi attacca è pubblico**: durante lo scontro tutti vedono quale impero attacca quale comune (non da dove). Il brief dice solo che lo scontro è visibile in mappa. Da confermare.
-- **Icone di stato in mappa**: per ora c'è solo il bordo del comune sotto attacco; scudo del protetto e segnaposto della capitale non sono ancora disegnati.
-- **Peso dei comuni nuovi nella ripartizione in proporzione**: oggi è 1. Da decidere se dare al comune nuovo un peso più sensato (per esempio la media degli altri).
-- **Connessi della partita**: conto i giocatori con un impero attivo che hanno la partita aperta in quel momento, non quelli semplicemente collegati al sito. Da confermare.
-- **Interfaccia su telefono**: le due schede in fondo (mappa, pannello) non sono state provate su un telefono reale; la terza scheda del prototipo, la bacheca, arriva con la milestone 10.
-- **Giocatori minimi per partire**: il brief non dice cosa succede se all'ora di inizio c'è un solo iscritto o nessuno. Ho scelto: servono almeno 2 imperi, altrimenti la partita aspetta una nuova data. Da confermare.
-- **Iscrizioni a partita iniziata**: il brief non lo dice in modo esplicito. Ho scelto di permetterle, con una regola per disattivarle. Da confermare.
-- **Abbandono**: un giocatore iscritto non può ritirarsi né cambiare comune di partenza prima dell'inizio. Il brief non lo prevede.
-- **Palette degli imperi**: i 120 colori sono generati (24 tinte in 5 toni) per garantire l'unicità fino a 120 giocatori, ma molti si somigliano sulla mappa. Resta da disegnare la palette dedicata (M0-11).
-- **Durata del turno minima**: l'interfaccia accetta frazioni di ora (fino a 0,01, circa 36 secondi) per fare partite di prova veloci. Da decidere se limitarla in produzione.
-- **Mappa di sfondo**: in sviluppo si usano le tile pubbliche di OpenStreetMap, che non sono ammesse per un sito in produzione. Prima del rilascio serve un fornitore di tile (o un server proprio).
-- **Prova su telefono**: la mappa è stata verificata su computer con l'Italia intera; su un telefono reale non è ancora stata provata.
-- **Colori degli imperi di prova**: derivano dalle tre palette del tema e oltre una dozzina di imperi si confondono, come già annotato per la palette dedicata.
-- **Soglie dei confini** (5 metri di scarto, 50 metri di confine in comune): sono una mia proposta, configurabile; sull'Italia intera danno il risultato atteso sui casi controllati.
-- **Isole**: i quattordici comuni senza confinanti vanno collegati a mano dall'admin, scegliendo a quali comuni della terraferma o di altre isole unirli.
-- **Limiti dei tentativi**: i valori (10 accessi falliti in 5 minuti, 10 registrazioni all'ora per indirizzo) sono una mia proposta: il brief chiede il limite ma non ne fissa i numeri.
-- **Contatori in memoria**: limiti dei tentativi e registro delle connessioni vivono nel processo `api`. Vanno spostati in uno store condiviso se `api` girerà in più istanze.
-- **Limite di frequenza dei messaggi in bacheca** (§2.11): il brief lo prevede ma non ne fissa il valore. Ho messo 20 secondi tra due messaggi dello stesso impero, configurabile per partita. Da confermare.
-- **Chi è nuovo in bacheca**: il conteggio dei "nuovi" è ricordato nel browser, non sul server: cambiando dispositivo riparte.
-- **Palette degli imperi** (§11): i colori attuali si distinguono poco; serve una palette dedicata prima del rilascio.
+- **Mappa di sfondo**: le tile pubbliche di OpenStreetMap non sono ammesse per un sito in produzione; serve un fornitore o un server proprio. Segnalato, da rivedere.
+- Hosting, monitoraggio e servizio di tracciamento degli errori, copia dei backup fuori sede e cifratura, più istanze dell'api, prova di carico su una macchina reale: vedi `docs/RILASCIO.md` e `docs/LOAD.md`.

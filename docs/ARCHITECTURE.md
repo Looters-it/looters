@@ -214,7 +214,7 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 
 ## Languages
 
-The interface is in Italian and ready for others; none is shipped yet.
+The interface is in Italian and in English (`locales/it.json`, `locales/en.json`).
 
 - **Adding a language** is adding `web/src/i18n/locales/<code>.json` (a copy of `it.json`, translated). Nothing else: `i18n/index.ts` finds the files at build time (`import.meta.glob`), each becomes its own chunk loaded only when chosen, and the selector in the account panel (`i18n/LanguageSelect.tsx`) appears as soon as there are two. Languages are listed under their own name (`Intl.DisplayNames`).
 - **Which language**: the one chosen before on the device (`localStorage` key `lang`), otherwise the first language of the browser that exists, otherwise Italian. It is set before the first render and written on `<html lang>`. Italian is the fallback for any key a translation lacks.
@@ -271,14 +271,28 @@ Both services write one JSON object per line on standard output; the container r
 
 ## Alliances
 
-- `Alliance` + `AllianceMember` (primary key `empireId`: one alliance per empire, enforced by the database) + `AllianceInvite` + `AllianceMessage`. Code in `api/src/modules/game/alliances.ts`; `areAllies(tx, a, b)` and `allianceOf(tx, empireId)` are the two questions everything else asks.
-- A proposal is an `AllianceInvite` carrying the proposer's alliance at the time (`allianceId`, null for a new one). Accepting checks, with both empire rows locked in id order, that the proposer is still where they were, that there is room (`allianceMaxMembers`) and that the newcomer has no open battle with any member; it then creates the alliance or adds the member and deletes the other pending invites of the two.
-- Leaving sets `AllianceMember.leavesAtTurn = currentTurn + allianceLeaveNoticeTurns`. Nothing else changes until `jobs` closes that turn: `endgame.ApplyAllianceExits` removes the members whose turn has come, records `ALLIANCE_LEFT` and dissolves alliances left with fewer than two members. The fall of an empire removes its membership the same way.
-- The attack ban is in `BattleService` (`TARGET_IS_ALLY`), checked inside the declaring transaction; the unit card returns no `attack` block for an ally.
-- Visibility: `MatchService.state` and the unit card return `resources` for the viewer's own territories and their allies', `null` otherwise. `alliances` is in the state for everyone; `invites` only for the two empires involved.
-- Transfer: one transaction locking both territories in id order, refusing a territory with a `BattleLock`, with a conditional decrement on the source.
-- Chat: `AllianceMessage` rows read and written only by current members (`409 NOT_IN_ALLIANCE` for any other player); length capped by `boardMaxChars`. The web client keeps it under the `['matches','unit',matchId,…]` query key so `match.update` refreshes it.
-- Web: `features/game/AlliancePage.tsx`; the map views are pure functions in `features/game/map-views.ts` (`colorsFor(state, view, tones)`), fed to the same `colors` prop of `GameMap`.
+- An alliance is a **pact between two empires**: one `Alliance` row with `aEmpireId < bEmpireId` (unique pair), `endsAtTurn` and `endedByEmpireId`. There is no membership table and no group: `areAllies(tx, x, y)` is a lookup of the pair, and nothing is transitive. Code in `api/src/modules/game/alliances.ts`.
+- Proposal → `AllianceInvite`; accepting locks both empire rows, checks both sides against `allianceMaxAllies` and that the two are not fighting, then creates the pact. Routes: `POST /matches/:id/alliances/invites`, `…/invites/:inviteId/{accept|decline|withdraw}`, `POST …/alliances/:allianceId/{end|keep}`, `POST …/alliances/transfer`, `GET|POST …/alliances/:allianceId/chat`.
+- `end` sets `endsAtTurn = currentTurn + allianceLeaveNoticeTurns`; `keep` clears it and is allowed only to `endedByEmpireId`. `jobs` (`endgame.ApplyAllianceExits`) deletes the pacts whose turn has closed and records `ALLIANCE_ENDED`; the fall of an empire deletes its pacts.
+- State: `alliances: [{id, empireIds: [a, b], endsAtTurn, endedByEmpireId}]`, public. Resources are visible to the owner and to the other empire of each of its pacts.
+
+## Bots
+
+- A bot is an ordinary `Empire` of a `User` with `isBot` (no password matches it, and login looks only among non-bots). `api/src/modules/bots/service.ts` plays it **through the same services a player's requests reach** (`MatchService.join`, `GameService.annex`, `BattleService.declare/respond`, …) with a synthetic `AuthContext`: every rule, lock and limit applies as it is, and a bot knows only what the unit cards and its own state show a player.
+- `BotService.playTurn(matchId)`: maybe spawns one (`botsEnabled`, `botsMax`, `botSpawnChancePct`; on a free municipality two steps from an owned one), then each bot acts. `answerAttacks(matchId)`: bots under attack answer. A refusal by the game (`AppError` below 500) is a normal outcome; anything else is logged as `bot_error`.
+- `BotRunner` decides when: it is told of every change of a match (`app.matchChanged`) and schedules `playTurn` on `turn.closed` / `match.started` and `answerAttacks` on `battles`, after a short random pause, one task at a time per match. It runs only where `runBots` is set (the server, not the tests); `app.wakeBots()` at startup covers the turn a restart may have missed.
+- Bots live in the api process like the hub: one more reason the api is a single instance.
+
+## Empire logos
+
+- `EmpireLogo (empireId, mime, data, updatedAt)`: the image is in the database, so it travels with backups. `PUT /matches/:id/empire/logo` takes the bare image (content types `image/png|jpeg|webp`, at most 200 KB); `readLogo` decides what it is **from its bytes**, so an SVG or a script called a picture is refused. `GET /matches/:id/empires/:empireId/logo?v=…` serves it with `nosniff` and `Content-Security-Policy: default-src 'none'`; `DELETE` is for its owner, the owner of the match and the admin.
+- State: `empires[].logoUrl` (versioned by `updatedAt`, cacheable forever). Web: `EmpireShield` cuts the image to the shield; on the map `features/map/capital-icon.ts` draws the arms of each empire (emblem or logo) on a canvas and adds it as a MapLibre image, used by the `capital-arms` symbol layer over the plain disc, which stays as the fallback.
+
+## End-to-end tests
+
+- `e2e/` (root repository): Playwright against the running stack, **at phone size** (two projects: 412×915 and 360×640, Chromium with touch). The setup (`support/world.ts`) loads the province of Milan through the admin upload if it is not there, creates two users with a session straight in the database, and a running match in a known position; the teardown removes users and match.
+- **Rule: a change to the interface comes with its phone test.** Each test checks at least that nothing sticks out of the screen sideways (`expectNoSidewaysScroll`) and that what must be tapped is big enough (`expectTappable`). Screenshots of every screen are saved in `e2e/test-results/` for a look.
+- Run: `docker compose up -d`, then `cd e2e && pnpm install && pnpm exec playwright install chromium && pnpm test`. In CI: `.github/workflows/e2e.yml` of the root repository builds the stack from the four repositories and runs them.
 
 ## Game mechanics, precisely
 
@@ -368,7 +382,7 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
                   battleId: string | null /* targets for everyone, sources for their owner */,
                   alert: boolean }],
   battles: [/* see Battles */],
-  alliances: [{ id, members: [{ empireId, leavesAtTurn: number | null }] }],   // public
+  alliances: [{ id, empireIds: [a, b], endsAtTurn: number | null, endedByEmpireId }],   // public
   invites: [{ id, fromEmpireId, toEmpireId }],                               // the viewer's only
   online: { connected: number, total: number }
 }

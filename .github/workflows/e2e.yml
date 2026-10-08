@@ -1,0 +1,58 @@
+name: End-to-end
+
+# The whole stack, built from the four repositories, driven by a real browser at phone
+# size. On every push here, and on demand after a change in one of the services.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: Looters-it/looters-api, path: api }
+      - uses: actions/checkout@v4
+        with: { repository: Looters-it/looters-jobs, path: jobs }
+      - uses: actions/checkout@v4
+        with: { repository: Looters-it/looters-web, path: web }
+      - name: Start the stack
+        run: |
+          cp .env.example .env
+          sed -i 's/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=e2e-only-admin-password/' .env
+          docker compose up -d --build
+          # Ready when the api answers through the web proxy and jobs has replied to it.
+          for i in $(seq 1 90); do
+            curl -fsS http://localhost:8080/api/health/ready | grep -q '"lastPongAt":"' && exit 0
+            sleep 2
+          done
+          docker compose ps
+          exit 1
+      - uses: pnpm/action-setup@v4
+        with: { package_json_file: e2e/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - working-directory: e2e
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm test
+      - name: What the services said, if it failed
+        if: failure()
+        run: docker compose logs --tail 200 api jobs web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phone-screens-and-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
