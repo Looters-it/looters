@@ -212,6 +212,16 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
 
+## Performance under load
+
+Measured and explained in `docs/LOAD.md`. What exists because of it:
+
+- **Coalesced pushes** (`RealtimeHub`, `MATCH_UPDATE_WINDOW_MS`): at most one `match.update` per match per window, leading and trailing, with the kinds of the collapsed changes merged. `battle.incoming` and `match.online` are not delayed.
+- **Shared state reading** (`MatchService.load` / `loadShared`, `MATCH_STATE_CACHE_MS`): everything the state of a match is made of is read once and shared by concurrent viewers; `state()` derives each viewer's view in memory, which is where hidden information is enforced. `forget(matchId)` is called by `app.matchChanged`, the single path for changes made by the api (`onChange` of every service) and by `jobs` (notifications). Off (`0`) unless configured, so tests that write to the database directly read what they wrote.
+- **Single flight** (`TileCache.load`): one generation per tile however many ask at once; also holds the serialised list of municipalities of a match.
+- **Pool** (`DATABASE_POOL_SIZE`) and a glibc image for the api.
+- All three caches are in the memory of the api process, like the hub: the api is a single instance. Scaling it out needs a shared channel for changes (every change published through PostgreSQL `NOTIFY` or Kafka, not only those of `jobs`) before anything else.
+
 ## Accessibility
 
 - **Automated checks** (`web`): `src/test/a11y.ts` runs axe (WCAG 2.1 A and AA, best practices) on a rendered page; `src/app/a11y.test.tsx` applies it to the homepage, the account panel, the new-match form and every page of the match panel. A new page gets a line there.

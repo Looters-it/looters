@@ -78,6 +78,10 @@ Quando `api` aggiunge una chiave alla configurazione di partita, va aggiunto il 
 ./scripts/sync-jobs-fixtures.sh --check  # fallisce se una copia è rimasta indietro
 ```
 
+## Prova di carico
+
+`cd api && pnpm load` simula 100 giocatori sull'Italia intera contro lo stack avviato e fallisce se il gioco rallenta oltre le soglie o se un turno chiude in ritardo. Come funziona, le variabili e i risultati sono in [`docs/LOAD.md`](docs/LOAD.md).
+
 ## Backup e ripristino
 
 Un backup è una coppia di file in `./backups` con lo stesso orario (UTC): `gioco-<data>-<ora>.dump` (il database, formato `pg_dump -Fc`) e `gioco-<data>-<ora>.uploads.tgz` (i file geografici caricati dall'admin). Insieme bastano a ricostruire tutto: Kafka non va salvato, perché uno scontro la cui richiesta va persa viene comunque risolto alla chiusura del turno.

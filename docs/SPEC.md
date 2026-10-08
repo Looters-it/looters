@@ -283,6 +283,11 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - **Nell'interfaccia**: la voce "Storico dei turni" del menu elenca i turni dal più recente, una card richiudibile per turno con il numero di eventi; aperta, mostra gli eventi (quelli che citano un comune portano la mappa su quel comune) e il pulsante **Rivedi sulla mappa**.
 - **Revisione della mappa**: la mappa si colora con i proprietari di quel turno; una barra in alto a sinistra dice quale turno si sta guardando, con le frecce per il turno precedente e successivo e **Torna al presente**. Durante la revisione non si vedono capitali, strutture, aree, allerte e scontri (sono del presente) e un tocco su un comune dice solo di chi era allora.
 
+### Aggiornamenti in tempo reale
+
+- Quello che fanno gli altri giocatori compare da solo, senza ricaricare, entro circa **un secondo**: quando in una partita succedono molte cose insieme, gli aggiornamenti vengono raggruppati (al massimo uno al secondo per partita) invece di arrivare uno per ogni mossa.
+- La propria mossa si vede subito, e l'avviso di un attacco in arrivo non viene mai ritardato.
+
 ### Accessibilità
 
 - **Imperi distinguibili senza il colore**: ogni impero ha una **sigla** (le iniziali del nome senza articoli e preposizioni, al massimo tre lettere; se due imperi avrebbero la stessa, il secondo prende un numero: `DT`, `DT2`). La sigla è scritta sui comuni dell'impero in mappa, sotto il nome del comune, e accanto al nome dell'impero in classifica. Il pulsante "Sigle degli imperi" sopra la mappa le nasconde; la scelta viene ricordata sul dispositivo. Restano lo stemma e il nome dell'impero nella scheda di ogni comune.
@@ -361,6 +366,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Carico** `[ASSUNZIONE]`: provato con 100 giocatori sull'Italia intera su un portatile (`docs/LOAD.md`), non su una macchina di produzione né per ore di fila. Il ritardo massimo di un secondo sugli aggiornamenti degli altri è una scelta di prestazioni, regolabile (`MATCH_UPDATE_WINDOW_MS`).
 
 - **Accessibilità, scelte da confermare** `[ASSUNZIONE]`: le sigle in mappa sono attive per tutti finché non le si spegne; il colore dei pulsanti al passaggio del mouse è cambiato rispetto al tema del prototipo (più scuro anziché più chiaro). Non verificato: lettura reale con uno screen reader e contrasto dei colori degli imperi tra loro, che dipende dalla palette per 100 imperi (M0-11).
 
