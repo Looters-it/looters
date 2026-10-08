@@ -78,6 +78,10 @@ Quando `api` aggiunge una chiave alla configurazione di partita, va aggiunto il 
 ./scripts/sync-jobs-fixtures.sh --check  # fallisce se una copia è rimasta indietro
 ```
 
+## Produzione
+
+Mettere il gioco su un server e aggiornarlo: [`docs/RILASCIO.md`](docs/RILASCIO.md). In breve, `cp .env.prod.example .env`, compilarlo, e `./scripts/deploy.sh`.
+
 ## Prova di carico
 
 `cd api && pnpm load` simula 100 giocatori sull'Italia intera contro lo stack avviato e fallisce se il gioco rallenta oltre le soglie o se un turno chiude in ritardo. Come funziona, le variabili e i risultati sono in [`docs/LOAD.md`](docs/LOAD.md).

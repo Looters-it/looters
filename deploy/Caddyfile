@@ -1,0 +1,9 @@
+# The only door from outside: HTTPS with a certificate obtained and renewed by Caddy
+# for DOMAIN, everything forwarded to the web container. With DOMAIN=localhost the
+# certificate comes from Caddy's own authority (for trying the setup on one machine).
+{$DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	header -Server
+	reverse_proxy web:8080
+}

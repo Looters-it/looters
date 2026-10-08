@@ -22,7 +22,7 @@ This file is the contract between the three services. Game rules live in `../../
 
 Each service ships a `.env.example` that documents its own variables.
 
-- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`, `UPLOAD_MAX_MB` (300; the web proxy has the same limit in `nginx.conf`), `TILE_CACHE_MB` (128), `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (720), `COOKIE_SECURE` (false; true in production), `TRUST_PROXY` (false; true behind the web proxy), `LOGIN_RATE_MAX` (10), `LOGIN_RATE_WINDOW_SEC` (300), `REGISTER_RATE_MAX` (10), `REGISTER_RATE_WINDOW_SEC` (3600); seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
+- `api`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC` (default `battle.resolve`), `PORT`, `HOST`, `LOG_LEVEL`, `UPLOAD_DIR`, `UPLOAD_MAX_MB` (300; the web proxy has the same limit in `nginx.conf.template`), `TILE_CACHE_MB` (128), `SESSION_COOKIE_NAME` (default `sid`), `SESSION_TTL_HOURS` (720), `COOKIE_SECURE` (false; true in production), `TRUST_PROXY` (false; true behind the web proxy), `LOGIN_RATE_MAX` (10), `LOGIN_RATE_WINDOW_SEC` (300), `REGISTER_RATE_MAX` (10), `REGISTER_RATE_WINDOW_SEC` (3600); seed only: `ADMIN_USERNAME`, `ADMIN_PASSWORD` (at least 12 characters), `ADMIN_EMAIL`; tests: `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
 - `jobs`: `DATABASE_URL`, `KAFKA_BROKERS`, `KAFKA_BATTLE_TOPIC`, `KAFKA_GROUP_ID` (default `gioco-jobs`), `UPLOAD_DIR`, `JOBS_POLL_MS` (1000), `JOBS_WORKERS` (4), `JOBS_MAX_ATTEMPTS` (5), `JOBS_STALE_AFTER_SEC` (300), `GEO_SIMPLIFY_TOLERANCE_M` (50), `GEO_ADJACENCY_GAP_M` (5), `GEO_ADJACENCY_MIN_BORDER_M` (50); tests: `GEO_ITALY_FILE` (path of a GeoJSON with every Italian municipality, enables the whole-country test), `TEST_DATABASE_URL`, `TEST_KAFKA_BROKERS`.
 - `web`: `API_PROXY_TARGET` (dev server only), `VITE_BASE_TILES_URL` (build time: background map tiles, default the public OpenStreetMap server).
 - root `.env` (read by compose): `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_EMAIL`, optional `KAFKA_BATTLE_TOPIC`, `KAFKA_BATTLE_PARTITIONS` (6).
@@ -211,6 +211,12 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `POST /matches/:id/board {text}`: only a player with an active empire, in a match not finished; at most `boardMaxChars` characters; at least `boardMessageIntervalSec` seconds after the same empire's previous message, checked in the database with the empire row locked (`429 RATE_LIMITED` with `Retry-After`).
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
+
+## Production
+
+- `docker-compose.prod.yml` is an override of the base file (`ports: !reset []` removes what development publishes): a Caddy `proxy` terminates TLS for `DOMAIN` and is the only published service; secrets are required from `.env`; restart policies, log rotation, memory caps, `COOKIE_SECURE`, and the `backup` service on. `scripts/deploy.sh` is backup → build → up → wait for `/api/health/ready`. Operator's guide: `docs/RILASCIO.md`.
+- **Client address**: Caddy sets `X-Forwarded-For` (ignoring the client's), nginx in `web` believes it only from `REAL_IP_FROM` (the compose network in production, nobody in development) and passes the result to the api, which trusts its proxy (`TRUST_PROXY`). Rate limits and session records therefore see the real address and a client cannot choose it.
+- **Images**: the api starts as root only to hand the uploads volume to `node`, then drops privileges (`setpriv`) before migrating and serving; `jobs` runs as an unprivileged user; `web` is nginx with its config rendered from `nginx.conf.template` at start and the security headers of `security-headers.conf` (CSP included: every external origin the interface loads is listed there).
 
 ## Performance under load
 

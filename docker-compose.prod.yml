@@ -1,0 +1,88 @@
+# Production: used on top of the base file.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# (or scripts/deploy.sh, which also takes a backup first and checks the result).
+# What changes from development: nothing but HTTPS is reachable from outside, secrets
+# come from .env and have no default, containers restart by themselves, logs rotate,
+# memory is capped and backups are on. See docs/RILASCIO.md.
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  proxy:
+    <<: *defaults
+    image: caddy:2-alpine
+    depends_on: [web]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env (the public host name of the game)}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    mem_limit: 256m
+
+  web:
+    <<: *defaults
+    ports: !reset []
+    environment:
+      # The client address is the one the proxy reports: trusted only from this network.
+      REAL_IP_FROM: 172.28.0.0/16
+    mem_limit: 256m
+
+  api:
+    <<: *defaults
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql://gioco:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/gioco
+      COOKIE_SECURE: "true"
+      NODE_ENV: production
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-30}
+    stop_grace_period: 30s
+    mem_limit: ${API_MEMORY:-1g}
+
+  jobs:
+    <<: *defaults
+    environment:
+      DATABASE_URL: postgresql://gioco:${POSTGRES_PASSWORD}@db:5432/gioco
+    # A turn being closed is finished before stopping.
+    stop_grace_period: 60s
+    mem_limit: ${JOBS_MEMORY:-1g}
+
+  db:
+    <<: *defaults
+    ports: !reset []
+    environment:
+      # Read only when the data volume is first created: see the guide to change it later.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    shm_size: 256m
+    stop_grace_period: 60s
+    mem_limit: ${DB_MEMORY:-2g}
+
+  kafka:
+    <<: *defaults
+    ports: !reset []
+    environment:
+      KAFKA_HEAP_OPTS: -Xms256m -Xmx512m
+    mem_limit: 1g
+
+  backup:
+    <<: *defaults
+    # On by default here, not only with the `backup` profile.
+    profiles: !reset []
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    mem_limit: 512m
+
+networks:
+  default:
+    ipam:
+      config: [{ subnet: 172.28.0.0/16 }]
+
+volumes:
+  caddydata:
+  caddyconfig:

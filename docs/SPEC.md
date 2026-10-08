@@ -367,6 +367,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 
 ## Punti aperti
 
+- **Produzione** `[ASSUNZIONE]`: un solo server con Docker Compose e HTTPS automatico (Caddy); nessuna scelta su fornitore di hosting, monitoraggio, copia dei backup fuori sede e fornitore della mappa di base, che restano da decidere (`docs/RILASCIO.md`, "Limiti").
+
 - **Carico** `[ASSUNZIONE]`: provato con 100 giocatori sull'Italia intera su un portatile (`docs/LOAD.md`), non su una macchina di produzione né per ore di fila. Il ritardo massimo di un secondo sugli aggiornamenti degli altri è una scelta di prestazioni, regolabile (`MATCH_UPDATE_WINDOW_MS`).
 
 - **Accessibilità, scelte da confermare** `[ASSUNZIONE]`: le sigle in mappa sono attive per tutti finché non le si spegne; il colore dei pulsanti al passaggio del mouse è cambiato rispetto al tema del prototipo (più scuro anziché più chiaro). Non verificato: lettura reale con uno screen reader e contrasto dei colori degli imperi tra loro, che dipende dalla palette per 100 imperi (M0-11).
