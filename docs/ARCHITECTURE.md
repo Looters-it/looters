@@ -212,6 +212,13 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
 - `DELETE /matches/:id/board/:eventId`: the owner of the match or the platform admin; messages only (`removedAt`, `removedById`). Automatic announcements are the record of what happened and cannot be removed.
 - Live updates: every change sends `match.update` to the followers of the match and the client reads the board again; there is no separate board message on the socket.
 
+## Turn history
+
+- `TurnSnapshot (matchId, turn, ownership)` holds `{geoUnitId: empireId}` for the owned municipalities at the end of a turn. `jobs` writes it at every turn close and in `endgame.Finish`, so the last turn of a match is there even when the match ends in the middle of it. A turn is "closed" when its snapshot exists.
+- `GET /matches/:id/history` → `[{turn, closedAt, events: number}]`, newest first. `GET /matches/:id/history/:turn` → `{turn, closedAt, events: BoardEntry[], ownership}`, `404` for a turn without snapshot. Both in `BoardService`: the history is the event log read by turn, with the same entries as the board minus `MESSAGE`. Events recorded before the start (turn 0) are listed under turn 1.
+- Nothing about resources is stored per turn, so the history cannot leak them; the tests assert the exact keys returned.
+- Web: `features/game/HistoryPage.tsx`; `MatchPage` keeps `review: number | null` and, while it is set, feeds `GameMap` the colours of the snapshot and no markers, labels, areas or highlights. A closed turn is cached forever (`staleTime: Infinity`); the list of turns sits under the `['matches','unit',matchId,…]` key and is read again on `match.update`.
+
 ## Alliances
 
 - `Alliance` + `AllianceMember` (primary key `empireId`: one alliance per empire, enforced by the database) + `AllianceInvite` + `AllianceMessage`. Code in `api/src/modules/game/alliances.ts`; `areAllies(tx, a, b)` and `allianceOf(tx, empireId)` are the two questions everything else asks.
@@ -291,6 +298,7 @@ Base path `/api`. JSON bodies, zod-validated. Errors: `{ "error": { "code": stri
 | `GET /matches/:id/structures/catalogue` | player | what can be built, where, at what cost |
 | `POST /matches/:id/structures` `{type, territoryId, turn}` / `POST /matches/:id/structures/:structureId/move` `{territoryId, turn}` | player | build; move a movable structure |
 | `GET /matches/:id/board?kind=&empireId=&before=&limit=` / `POST` `{text}` / `DELETE /matches/:id/board/:eventId` | read: any; write: player; delete: owner or admin | `400 MESSAGE_TOO_LONG`, `429 RATE_LIMITED` |
+| `GET /matches/:id/history` · `GET /matches/:id/history/:turn` | any | Closed turns with their events and the ownership at the end of each; `404` for a turn not closed |
 | `POST /matches/:id/alliances/invites` `{toEmpireId}` · `POST …/invites/:inviteId/{accept\|decline\|withdraw}` · `POST …/alliances/leave` · `POST …/alliances/transfer` `{fromTerritoryId, toTerritoryId, amount, turn}` · `GET\|POST …/alliances/chat` `{text}` | player | Alliances: all return the match state, the chat returns its messages newest first |
 | `GET /matches/:id/history` | any | `[{turn, events:[...]}]` |
 | `GET /matches/:id/history/:turn` | any | `{turn, ownership:{[geoUnitId]:empireId|null}}` |

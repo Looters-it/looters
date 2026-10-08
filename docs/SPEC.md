@@ -275,6 +275,14 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Chi è alleato con chi è **pubblico**: lo vedono tutti, anche ospiti e spettatori. Le proposte in attesa le vedono solo chi le ha fatte e chi le ha ricevute.
 - **Nell'interfaccia**: la voce "Alleanza" del menu dell'impero raccoglie membri, proposte, invito, trasferimento, chat e uscita (con conferma). Sulla mappa un selettore in alto a sinistra cambia vista: **Politica** (colore dell'impero), **Alleanze** (un colore per alleanza, neutro per chi non ne ha) e **Risorse** (tono più scuro dove ci sono più risorse, solo sui territori propri e degli alleati).
 
+### Storico dei turni
+
+- Di ogni turno chiuso restano gli **eventi** (gli stessi annunci automatici della bacheca, in ordine; non i messaggi dei giocatori) e **chi possedeva ogni comune** alla fine del turno. Anche l'ultimo turno di una partita conclusa è nello storico, in qualunque momento sia finita.
+- Lo storico è pubblico come la bacheca: lo legge chiunque veda la partita. Non contiene mai risorse, né proprie né altrui: delle risorse dei turni passati non si conserva nulla.
+- Ciò che è successo prima dell'inizio (la nascita degli imperi) è elencato nel primo turno.
+- **Nell'interfaccia**: la voce "Storico dei turni" del menu elenca i turni dal più recente, una card richiudibile per turno con il numero di eventi; aperta, mostra gli eventi (quelli che citano un comune portano la mappa su quel comune) e il pulsante **Rivedi sulla mappa**.
+- **Revisione della mappa**: la mappa si colora con i proprietari di quel turno; una barra in alto a sinistra dice quale turno si sta guardando, con le frecce per il turno precedente e successivo e **Torna al presente**. Durante la revisione non si vedono capitali, strutture, aree, allerte e scontri (sono del presente) e un tocco su un comune dice solo di chi era allora.
+
 ### Interfaccia di partita
 
 - **Barra in alto**: giocatori della partita connessi sul totale di quelli in gioco, turno, conto alla rovescia, risorse totali del giocatore.
@@ -341,6 +349,8 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti
+
+- **Storico, scelte da confermare** `[ASSUNZIONE]`: lo storico è pubblico (anche per ospiti); i messaggi dei giocatori non ne fanno parte; la revisione mostra solo la proprietà dei comuni, non capitali, aree e strutture di allora; una partita con moltissimi turni li elenca tutti, senza paginazione.
 
 - **Alleanze, scelte da confermare** `[ASSUNZIONE]`: per far entrare un terzo impero basta l'invito di un solo membro, senza il consenso dell'altro; l'annuncio di uscita non si può ritirare; i trasferimenti tra alleati non hanno limite di quantità né di distanza; alleati e proposte accettate sono pubblici, mentre le proposte in attesa sono private; il colore di un'alleanza in mappa è quello del suo primo membro.
 
