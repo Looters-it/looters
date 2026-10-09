@@ -80,12 +80,42 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 ### Partite
 
+**Modalità di gioco**
+
+Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visibilità e inizio.
+
+- **Modalità principale**
+  - **Singleplayer**: gioca solo chi crea la partita, contro i bot. La partita è sempre privata e la vede solo lui; nessun altro può entrarci. I bot ci sono dal primo turno, nel numero scelto alla creazione (3 se non indicato).
+  - **Multiplayer**: si gioca contro persone online; i bot sono un'opzione.
+- **Ritmo**
+  - **Rush**: turni da 30 secondi, fissi.
+  - **Normale**: turni della durata decisa da chi crea la partita, da 30 secondi a 30 giorni. Una partita normale può avere turni da 30 secondi: la rush resta una modalità a sé perché avrà funzioni proprie.
+- **Visibilità** (solo multiplayer)
+  - **Pubblica**: compare negli elenchi e chiunque può partecipare.
+  - **Privata**: non compare negli elenchi, tranne che per chi l'ha creata e per chi ci gioca. Chi ne ha l'indirizzo può guardarla; per entrare serve il **codice d'invito**, che viene generato se non è indicato e che vede solo chi ha creato la partita.
+- **Inizio**
+  - **Subito**: la partita parte appena il suo primo giocatore ha scelto la capitale, e i turni si contano da quel momento.
+  - **Pianificato**: a una data e ora future. Nel frattempo chi partecipa può già scegliere la capitale.
+
+**Stati della partita**
+
+- **Pianificata** (`PLANNED`): creata e aperta ai giocatori, non ancora iniziata.
+- **In corso** (`ONGOING`): si gioca, i turni scorrono.
+- **Terminata** (`FINISHED`).
+- Non esiste più la bozza: una partita è pianificata dal momento in cui viene creata. Altri stati potranno aggiungersi.
+
+**Owner**
+
+- Chi crea la partita ne è l'**owner** per tutta la sua durata. Il suo nome è mostrato sulla card della partita e nei dettagli.
+- Finché la partita è pianificata l'owner può cambiare nome, data di inizio, durata massima, giocatori massimi (non sotto il numero degli iscritti) e codice d'invito; può eliminarla se non ci sono altri giocatori.
+- Che cosa possa fare l'owner a partita in corso è ancora da decidere.
+
 **Creazione**
 
-- Ogni utente registrato può creare una partita scegliendo: nome, area di gioco (un'area o una cartella con dei comuni), data e ora di inizio, giocatori massimi (da 2 a 120, predefinito 100), durata del turno in ore (predefinita 24), durata massima in giorni (facoltativa: senza, la partita non ha scadenza), codice d'invito (facoltativo: senza, la partita è pubblica) e tutte le regole di gioco, che partono dai valori predefiniti.
-- La partita nasce come **bozza**, visibile solo a chi l'ha creata, che può modificarla in tutto o eliminarla.
-- Con "Apri le iscrizioni" la bozza diventa pubblica. In quel momento vengono creati i territori di gioco, uno per comune, ciascuno con la sua dotazione nascosta. Da lì in poi mappa, durata del turno e regole non si possono più cambiare; restano modificabili nome, data di inizio, durata massima, giocatori massimi (non sotto il numero degli iscritti) e codice d'invito.
+- Ogni utente registrato può creare una partita. Sceglie modalità, ritmo, nome, area di gioco (un'area o una cartella con dei comuni), visibilità, inizio, giocatori massimi (da 2 a 120, predefinito 100; in singleplayer sono i bot più uno), durata del turno (se il ritmo è normale), durata massima in giorni (facoltativa) e le regole di gioco, che partono dai valori predefiniti.
+- Alla creazione vengono creati i territori di gioco, uno per comune, ciascuno con la sua dotazione nascosta. Mappa, modalità, ritmo, visibilità, durata del turno e regole non si possono più cambiare.
 - Chi crea la partita partecipa come gli altri: si iscrive e sceglie il suo comune.
+- La creazione avviene in un **modale grande** al centro dello schermo, in tre passi: modalità, ritmo, dettagli. Modalità e ritmo si scelgono con card (un'icona grande, che sarà sostituita da un'immagine, titolo e descrizione).
 
 **Dotazione nascosta dei comuni**
 
@@ -99,26 +129,28 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 - Se due giocatori scelgono lo stesso comune, lo ottiene chi arriva prima; l'altro riceve un errore, non perde nulla e può scegliere di nuovo.
 - In una partita nome (senza distinguere maiuscole e minuscole) e colore di un impero sono univoci; lo stemma può ripetersi. Ogni utente ha un solo impero per partita.
 - I colori sono 120 e gli stemmi dieci (torre, stella, croce, corona, scudo, rombo, bande, scacchi, monte, luna), tutti predefiniti.
-- Se la partita ha un codice d'invito, serve per iscriversi; lo vede solo chi ha creato la partita.
+- In una partita privata per iscriversi serve il codice d'invito; lo vede solo chi ha creato la partita.
 - Nome, colore, stemma e motto si possono cambiare solo prima dell'inizio.
 - Le iscrizioni restano aperte anche a partita iniziata, finché ci sono posti, a meno che la regola "si può entrare anche a partita iniziata" sia disattivata.
 
 **Avvio**
 
-- All'ora di inizio la partita parte da sola: passa al turno 1 e la fine del turno viene calcolata dall'ora di inizio prevista.
+- Una partita pianificata parte da sola all'ora di inizio: passa al turno 1 e la fine del turno viene calcolata dall'ora di inizio prevista. Una partita senza data parte quando il suo primo giocatore sceglie la capitale.
 - Le capitali scelte prima dell'inizio sono protette fino alla fine del turno 1. Chi entra a partita iniziata è protetto fino alla fine del turno in cui entra.
-- **Basta un impero** per partire (regola della partita, che chi la crea può alzare): gli altri possono essere bot, oppure si gioca da soli. Con meno imperi di quelli richiesti, all'ora di inizio non succede nulla: la partita resta con le iscrizioni aperte e chi l'ha creata può fissare una nuova data.
+- **Basta un impero** per partire (regola della partita, che chi la crea può alzare): gli altri possono essere bot, oppure si gioca da soli. Con meno imperi di quelli richiesti, all'ora di inizio non succede nulla: la partita resta pianificata e parte appena si iscrive il giocatore che mancava, oppure a una nuova data fissata dall'owner.
 - **Ritiro**: finché la partita non è iniziata, un iscritto può ritirarsi. Il suo impero viene cancellato e il comune di partenza torna libero con una **nuova** dotazione nascosta. Può iscriversi di nuovo, anche da un altro comune. A partita iniziata non ci si ritira più.
 
 **Cosa vede chi**
 
-- Tutti, anche gli ospiti, vedono le partite con iscrizioni aperte o in corso, gli imperi, i loro comuni sulla mappa e le regole.
+- Tutti, anche gli ospiti, vedono le partite pubbliche pianificate, in corso o terminate, gli imperi, i loro comuni sulla mappa e le regole. Le partite singleplayer le vede solo chi le gioca.
 - Le risorse di un territorio le vede solo il suo proprietario. Per tutti gli altri sono "nascoste".
 
-**Homepage**
+**Pagina delle partite**
 
-- "Partite attive" elenca le partite con iscrizioni aperte o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
-- "Le tue partite" elenca quelle che hai creato (bozze comprese) o a cui partecipi.
+- Elenca le partite pianificate o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
+- Il badge cliccabile **"Partite terminate"** passa all'elenco delle partite terminate, dalla più recente.
+- Ogni card mostra il nome, l'area, **chi ha creato la partita** e le etichette di modalità, ritmo rush, partita privata e partita pianificata.
+- "Le tue partite" elenca quelle non terminate che hai creato o a cui partecipi.
 
 ### Turni
 
@@ -283,7 +315,7 @@ Non ancora presenti, in arrivo con le partite: il bordo esterno più spesso di o
 
 ### Bot
 
-- Chi crea la partita può aggiungere **imperi bot**, guidati dal gioco. È un'opzione nel modulo di creazione; nelle regole si decide quanti al massimo (5) e con che probabilità ne nasce uno a ogni turno (30%).
+- In multiplayer chi crea la partita può aggiungere **imperi bot**, guidati dal gioco; in singleplayer ci sono sempre. Nelle regole si decide quanti al massimo (5), quanti sono presenti **dal primo turno** (nessuno in multiplayer, il numero di avversari scelto in singleplayer) e con che probabilità ne nasce uno a ogni turno successivo (30%).
 - Un bot **nasce all'inizio di un turno su un comune libero**, vicino agli imperi che ci sono già (a due comuni di distanza, senza toccarli), con le stesse risorse iniziali di un giocatore. La sua nascita è annunciata in bacheca come quella di ogni impero.
 - Gioca **con le stesse regole di un giocatore** e vede solo ciò che vedrebbe un giocatore al suo posto: non conosce le risorse altrui. A ogni turno annette i comuni liberi vicini finché il turno lo permette, attacca un vicino circa un turno su due, ogni tanto costruisce un blocco sulla capitale, accetta metà delle proposte di alleanza. Quando viene attaccato risponde entro pochi secondi: difende quasi sempre, ogni tanto cede un comune, mai la capitale.
 - Un bot può cadere e può vincere, come chiunque.
@@ -383,7 +415,7 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 - Un impero può appartenere a una sola alleanza.
 - In una partita nome e colore di un impero sono univoci, e ogni utente ha un solo impero.
 - Un comune appartiene a un solo territorio di gioco per partita.
-- Una partita nasce nello stato bozza.
+- Una partita nasce pianificata, multiplayer, a ritmo normale e pubblica.
 - Un comune libero viene assegnato con un aggiornamento condizionato: due iscrizioni contemporanee sullo stesso comune non possono riuscire entrambe.
 
 ## Decisioni prese in corso d'opera
@@ -402,6 +434,7 @@ Di queste chiavi oggi sono in uso `minPlayersToStart`, `lateJoin`, `startResourc
 | 2026-10-07 | La dashboard admin è stata costruita senza un mockup approvato (M0-09 è ancora aperta). |
 | 2026-10-08 | La dotazione nascosta dei comuni viene estratta all'apertura delle iscrizioni (quando la bozza diventa pubblica), prima che chiunque possa iscriversi. |
 | 2026-10-08 | La creazione segue gli stati del brief (bozza, poi iscrizioni aperte): chi crea la partita si iscrive dalla pagina della partita, non in un unico passaggio come nel prototipo. |
+| 2026-10-09 | Modalità di gioco: la bozza sparisce, la partita è pianificata appena creata e la dotazione nascosta dei comuni viene estratta in quel momento. Gli stati sono pianificata, in corso, terminata. |
 | 2026-10-08 | La scheda "Stato del sistema" è passata dalla homepage alla panoramica admin. |
 
 ## Punti aperti

@@ -145,7 +145,6 @@ export async function createWorld(): Promise<World> {
       // Each screen size annexes once, in the same turn of the same match.
       config: { annexPerTurn: 5 },
     })
-    await api(anna, 'POST', `/matches/${match.id}/open`)
     const options = await api<{ colors: string[] }>(null, 'GET', '/matches/options')
     const join = (token: string, geoUnitId: number, name: string, color: string | undefined, emblem: string) =>
       api(token, 'POST', `/matches/${match.id}/join`, {
@@ -163,7 +162,7 @@ export async function createWorld(): Promise<World> {
       [match.id],
     )
     await db.query(
-      `UPDATE "Match" SET status = 'RUNNING', "currentTurn" = 1,
+      `UPDATE "Match" SET status = 'ONGOING', "currentTurn" = 1,
          "turnEndsAt" = (now() AT TIME ZONE 'UTC') + interval '6 hours' WHERE id = $1`,
       [match.id],
     )
