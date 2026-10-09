@@ -24,6 +24,13 @@ Stato: **tutte le milestone completate**, più le attività trasversali e le dec
 - Nessun percorso di registrazione può creare un admin: una richiesta che contiene un ruolo viene rifiutata.
 - Accesso e registrazione stanno in un popover aperto dal pulsante in alto a destra.
 
+### Profilo e password
+
+- Il nome del giocatore nella barra laterale porta al profilo (`/profile`), da cui si raggiungono gli inviti e il cambio password.
+- La password si cambia in `/profile/change-password` indicando quella attuale e la nuova (almeno 8 caratteri) due volte. Una password attuale sbagliata conta come un tentativo di accesso fallito.
+- Dopo il cambio le altre sessioni aperte dell'utente vengono chiuse; resta quella da cui è stato fatto.
+- Nella registrazione il nome utente viene controllato mentre lo si scrive: disponibile o già in uso.
+
 ### Sessioni
 
 - Ogni accesso crea una sessione nel database. Il browser riceve un token in un cookie httpOnly; nel database ne è salvato solo l'hash.
@@ -92,7 +99,7 @@ Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visi
   - **Normale**: turni della durata decisa da chi crea la partita, da 30 secondi a 30 giorni. Una partita normale può avere turni da 30 secondi: la rush resta una modalità a sé perché avrà funzioni proprie.
 - **Visibilità** (solo multiplayer)
   - **Pubblica**: compare negli elenchi e chiunque può partecipare.
-  - **Privata**: non compare negli elenchi, tranne che per chi l'ha creata e per chi ci gioca. Chi ne ha l'indirizzo può guardarla; per entrare serve il **codice d'invito**, che viene generato se non è indicato e che vede solo chi ha creato la partita.
+  - **Privata**: non compare nella pagina delle partite. La vedono e possono entrarci solo chi l'ha creata e i giocatori che ha **invitato** per nome utente; per tutti gli altri non esiste. Il codice d'invito non c'è più.
 - **Inizio**
   - **Subito**: la partita parte appena il suo primo giocatore ha scelto la capitale, e i turni si contano da quel momento.
   - **Pianificato**: a una data e ora future. Nel frattempo chi partecipa può già scegliere la capitale.
@@ -107,7 +114,8 @@ Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visi
 **Owner**
 
 - Chi crea la partita ne è l'**owner** per tutta la sua durata. Il suo nome è mostrato sulla card della partita e nei dettagli.
-- Finché la partita è pianificata l'owner può cambiare nome, data di inizio, durata massima, giocatori massimi (non sotto il numero degli iscritti) e codice d'invito; può eliminarla se non ci sono altri giocatori.
+- Finché la partita è pianificata l'owner può cambiare nome, data di inizio, durata massima e giocatori massimi (non sotto il numero degli iscritti); può eliminarla se non ci sono altri giocatori.
+- In una partita privata l'owner invita i giocatori per nome utente dalla pagina della partita, vede chi è già entrato e può ritirare un invito finché l'invitato non è entrato.
 - Che cosa possa fare l'owner a partita in corso è ancora da decidere.
 
 **Creazione**
@@ -129,7 +137,7 @@ Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visi
 - Se due giocatori scelgono lo stesso comune, lo ottiene chi arriva prima; l'altro riceve un errore, non perde nulla e può scegliere di nuovo.
 - In una partita nome (senza distinguere maiuscole e minuscole) e colore di un impero sono univoci; lo stemma può ripetersi. Ogni utente ha un solo impero per partita.
 - I colori sono 120 e gli stemmi dieci (torre, stella, croce, corona, scudo, rombo, bande, scacchi, monte, luna), tutti predefiniti.
-- In una partita privata per iscriversi serve il codice d'invito; lo vede solo chi ha creato la partita.
+- A una partita privata si iscrive solo chi è stato invitato dall'owner.
 - Nome, colore, stemma e motto si possono cambiare solo prima dell'inizio.
 - Le iscrizioni restano aperte anche a partita iniziata, finché ci sono posti, a meno che la regola "si può entrare anche a partita iniziata" sia disattivata.
 
@@ -147,10 +155,15 @@ Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visi
 
 **Pagina delle partite**
 
-- Elenca le partite pianificate o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
+- Elenca solo le partite **multiplayer e pubbliche**, pianificate o in corso, sei per pagina, filtrabili per nome e per partecipanti (con posti liberi, fino a 20, da 21 a 50, più di 50). Il pulsante è "Partecipa", "Al completo" (disattivato) o "Entra" se la partita è già tua.
 - Il badge cliccabile **"Partite terminate"** passa all'elenco delle partite terminate, dalla più recente.
 - Ogni card mostra il nome, l'area, **chi ha creato la partita** e le etichette di modalità, ritmo rush, partita privata e partita pianificata.
-- "Le tue partite" elenca quelle non terminate che hai creato o a cui partecipi.
+- "Le tue partite" elenca quelle non terminate che hai creato o a cui partecipi, comprese le private e le singleplayer.
+
+**Inviti**
+
+- La pagina `/profile/invitations` elenca gli inviti alle partite private a cui il giocatore non ha ancora risposto: partite non terminate in cui non è ancora entrato. Da lì apre la partita, per scegliere la capitale, oppure rifiuta l'invito.
+- Un invito rifiutato o ritirato sparisce e la partita torna invisibile a quel giocatore.
 
 ### Turni
 
