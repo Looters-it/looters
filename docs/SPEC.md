@@ -34,7 +34,7 @@ Stato: **tutte le milestone completate**, più le attività trasversali e le dec
 ### Sessioni
 
 - Ogni accesso crea una sessione nel database. Il browser riceve un token in un cookie httpOnly; nel database ne è salvato solo l'hash.
-- Una sessione dura 30 giorni (configurabile), poi scade.
+- Una sessione dura 30 giorni (configurabile) **dall'ultimo utilizzo**: ogni volta che viene usata, al più una volta al minuto, la scadenza si sposta in avanti di tutta la durata, e con lei quella del cookie. Scade solo se resta inutilizzata per 30 giorni.
 - L'uscita termina la sessione corrente.
 - L'admin può elencare le sessioni attive e revocarne una: la sessione smette subito di essere valida e le sue connessioni in tempo reale vengono chiuse all'istante. Il giocatore vede un avviso e torna ospite.
 
