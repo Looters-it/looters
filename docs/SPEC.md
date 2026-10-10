@@ -95,8 +95,8 @@ Le modalità si combinano: prima la modalità principale, poi il ritmo, poi visi
   - **Singleplayer**: gioca solo chi crea la partita, contro i bot. La partita è sempre privata e la vede solo lui; nessun altro può entrarci. I bot ci sono dal primo turno, nel numero scelto alla creazione (3 se non indicato).
   - **Multiplayer**: si gioca contro persone online; i bot sono un'opzione.
 - **Ritmo**
-  - **Rush**: turni da 30 secondi, fissi.
-  - **Normale**: turni della durata decisa da chi crea la partita, da 30 secondi a 30 giorni. Una partita normale può avere turni da 30 secondi: la rush resta una modalità a sé perché avrà funzioni proprie.
+  - **Rush**: turni da 60 secondi, fissi: 30 di fase preliminare e 30 di azione.
+  - **Normale**: turni della durata decisa da chi crea la partita, da 30 secondi a 30 giorni. Una partita normale può avere turni anche più brevi di quelli rush: la rush resta una modalità a sé perché avrà funzioni proprie.
 - **Visibilità** (solo multiplayer)
   - **Pubblica**: compare negli elenchi e chiunque può partecipare.
   - **Privata**: non compare nella pagina delle partite. La vedono e possono entrarci solo chi l'ha creata e i giocatori che ha **invitato** per nome utente; per tutti gli altri non esiste. Il codice d'invito non c'è più.
