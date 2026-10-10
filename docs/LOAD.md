@@ -71,3 +71,45 @@ In both runs every socket stayed connected, no request failed and every turn clo
 - With the window, a player sees what others do up to one second late.
 - Players are simulated with fixed pauses; real ones are slower and less regular. No browser is involved: rendering the map with 100 empires is not measured here.
 - It was not run on a production-sized machine or over a real network, and not for hours: memory growth over a long match is not covered.
+
+## Duels across many matches
+
+A second script, `api/scripts/duel-load.ts`, measures something else: many matches at the same time, each with two players who only fight. One attacks, the other defends, the battle goes through the queue to `jobs` and comes back resolved; then again, as fast as the stack answers.
+
+```sh
+cd api
+pnpm load:duels                                  # 50 matches, 60 seconds of fighting
+DUEL_MATCHES=100 DUEL_DURATION_SEC=45 pnpm load:duels
+```
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `DUEL_BASE_URL` | `http://localhost:8080` | The stack under test |
+| `DUEL_MATCHES` | `50` | Matches fighting at the same time, two players each |
+| `DUEL_DURATION_SEC` | `60` | How long they fight once every match is open |
+| `DUEL_POLL_MS` | `100` | How often the attacker reads the state while waiting for a result |
+| `DUEL_P95_LIMIT_MS` | `1000` | The run fails if the 95th percentile of a route used while fighting is above this |
+| `DUEL_RESOLVE_P95_LIMIT_MS` | `3000` | The run fails if the 95th percentile of the time to resolve a battle is above this |
+| `DUEL_RESOLVE_TIMEOUT_MS` | `20000` | A battle not resolved after this long is an error |
+| `DUEL_OPEN_TIMEOUT_SEC` | `300` | How long the matches may take to open and start |
+| `DUEL_KEEP` | unset | Set to keep the matches and the `duel_*` users afterwards |
+
+The matches are opened first and fight afterwards, so the two are measured apart. The script writes to the database for three things only: the players and their sessions, the protection of the capitals (removed, so the fight starts at turn 1), and the resources of the two capitals, set again every 12 duels. The attacker is given far less than the defender, so it nearly always loses and the same match goes on; when it wins against the odds, the pair opens another match. Turns are two hours long: this run is about battles, not about the closing of turns.
+
+It reports the time of every call by route, the duels resolved each second, and the time of a battle from the answer of the defender to its result as the attacker sees it (read every `DUEL_POLL_MS`, so it is rounded up to that).
+
+### Result
+
+Same machine and setting as above, every match on the whole of Italy, 45 seconds of fighting.
+
+| Matches | Duels per second | Attack, median / 95th | Answer, median / 95th | Battle resolved, median / 95th | Opening all the matches | Errors |
+| --- | --- | --- | --- | --- | --- | --- |
+| 10 | 47 | 72 ms / 154 ms | 59 ms / 133 ms | 45 ms / 115 ms | 7 s | 0 |
+| 50 | 59 | 258 ms / 590 ms | 241 ms / 530 ms | 174 ms / 418 ms | 30 s | 0 |
+| 100 | 75 | 394 ms / 778 ms | 368 ms / 812 ms | 340 ms / 690 ms | 62 s | 0 |
+
+Every battle was resolved and nothing failed. With ten times the matches the duels closed each second grow by about a half while every call takes five times as long: with players that never pause the stack is at its limit already with ten matches, and more matches share the same throughput. Real players declare a few attacks a turn, not five a second.
+
+### What it found
+
+Creating many matches at the same instant failed: each creation writes one territory per municipality in a single transaction (about a second for Italy), and from the tenth or so the others gave up waiting for a database connection after two seconds, with a `500`. Creations now go through two at a time and the others wait their turn, so fifty matches asked together are all created, the last after about half a minute, and the connections are left to the matches being played.
