@@ -414,7 +414,7 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `accumAlertPct`, `accumAlertMinTerritories` | 50, 3 | soglia e dimensione minima per l'allerta di accumulo (§2.8) |
 | `mergeCostTurns`, `mergeMaxUnits` | 0,5, 5 | costo per territorio e dimensione massima di un'area (§2.10, §9 n. 16) |
 | `secondCapitalCostTurns` | 20 | costo della seconda capitale, in turni (§2.10) |
-| `blockCost`, `blockTurns`, `blockCooldownTurns` | 300, 5, 5 | costo, durata e pausa del blocco militare (§2.10) |
+| `blockCost`, `blockTurns`, `blockCooldownTurns` | 150, 5, 5 | costo, durata e pausa del blocco militare (§2.10) |
 | `allianceMaxMembers`, `allianceLeaveNoticeTurns` | 3, 1 | membri massimi e preavviso di uscita (§2.6, §9 n. 9) |
 | `boardMaxChars` | 500 | lunghezza massima di un messaggio in bacheca (§2.11) |
 | `boardMessageIntervalSec` | 20 | secondi di attesa tra due messaggi dello stesso impero (scelta provvisoria) |
