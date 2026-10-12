@@ -128,6 +128,7 @@ Authoritative definition: `api/prisma/schema.prisma`. Key ideas:
   "annexCost": 50, "annexPerTurn": 1,
   "attackPct": 50, "attackStepPct": 10, "attackMaxPct": 100,
   "defensePct": 50, "surrenderRefundPct": 50, "battleSpoilsPct": 70,
+  "siegeMarginPct": 30, "siegeCapitalMarginPct": 60,
   "capitalMoveEveryTurns": 3,
   "accumAlertPct": 50, "accumAlertMinTerritories": 3,
   "mergeCostTurns": 0.5, "mergeMaxUnits": 5,
@@ -189,6 +190,16 @@ The api records, `jobs` decides. Nothing in the api computes an outcome.
   - If the attacker wins, the territory changes owner with what is left on it and is protected through `protectedUntilTurn`.
   - The locks are deleted, `BATTLE_RESOLVED` is recorded (names and outcome only) and `battle.resolved` is notified.
 - **At turn close**, before income: every battle still open is resolved in declaration order. One with a recorded answer uses it; one without is fought as `DEFEND`: silence is never a surrender. A territory conquered here is protected through the turn that begins (`turn + 1`), because protection "until the end of the turn" that is ending would protect nothing; one conquered during a turn is protected until that turn ends.
+- **Sieges: a battle over several turns** (`battle.Decide`, `Battle.round`, `BattleRound`). A round ends the battle only if one score beats the other by a margin: the attacker wins if `attack > defense × (1 + m)`, the defender if `defense ≥ attack × (1 + m)`, with `m` = `siegeMarginPct` (30), or `siegeCapitalMarginPct` (60) when the target is the defender's capital. At margin 0 every battle ends in its first round, as before. Below the margin nobody wins:
+  - the round is recorded in `BattleRound` (forces, costs, rolls, `share` = the attacker's part of the two scores, `result` `DRAW`), the defender pays its defence, `Battle.round` grows, `foughtTurn` is the current turn, `response` goes back to null, the locks stay, `BATTLE_ROUND` is recorded and the battle stays `OPEN`. **There is no last round**: a siege lasts until a round is won by the margin, the defender surrenders, or the attacker withdraws; meanwhile its territories stay locked.
+  - **one round a turn**: a round is fought only if `foughtTurn` is before the current turn, when the defender answers `DEFEND` (api refuses it earlier with `409 ROUND_FOUGHT`) or when the turn closes. A surrender or a withdrawal is applied at once, in any turn.
+  - **a round past the first** is fought with what is on the territories when it comes: the attacker's strength is the sum of its source territories, and each pays `ceil(resources × Battle.attackPct / 100)` then (`payRound`, added to `BattleSource.cost`); the defender's is what is on the target. `Battle.attackCost` and `defenseCost` add up over the rounds; forces, rolls and `share` are those of the last one. So what a player moves onto those territories with the income decides the next round.
+  - **Withdraw** (`POST /matches/:id/battles/:battleId/withdraw`): only the attacker, only past the first round (`409 NOT_A_SIEGE`). The api sets `Battle.withdrawn` and publishes the battle; `jobs` ends it as `WITHDRAWN`: the defender keeps the territory and receives the spoils.
+  - **Spoils** are computed on everything the two sides spent in all the rounds. A surrender in the first round refunds the attacker as before; in a later one it pays the attacker the spoils instead.
+  - **By how much** (`share`): told to everyone, in the state (`battles[].share`, `rounds[]`), in `BATTLE_RESOLVED` / `BATTLE_ROUND` (`share`, `rounds`) and on the board ("Attack 68%, defence 32%"): a ratio of the two scores, never an amount.
+  - **State**: `battles[]` also has `round`, `foughtThisTurn`, `withdrawn`; for an open siege `attackForce`, `nextCost` (attacker) and `defenseForce`, `defenseCost` (defender) are those of the round awaited, computed on what is there now.
+  - **Web**: `SiegeToasts` (the attacker: the siege, its last round, what the next costs, "Withdraw"; and how each of its attacks ended), `BattleAlert` and `AttackToasts` (the defender: asked again every turn; between rounds only a surrender).
+  - Bots defend every round and never withdraw.
 - **Replacing the formula**: implement `battle.Resolver` and set it on the `battle.Service`; old battles keep the name of the resolver that decided them.
 - **What each side sees** (`MatchService.state`, `battles`): open battles are listed for everyone with target and the two empires. The attacker also gets `fromTerritoryIds`, `attackCost`, `attackForce`; the defender gets `response`, `defenseForce`, `defenseCost`. Neither gets the other's numbers or the rolls. Battles resolved in the current or previous turn are listed for their two sides only. `Territory.battleId` is set on a target for everyone, on a source only for its owner.
 - **Capital**: after a conquest `endgame.CapitalLost` runs in the same transaction (see Capital, fall and end of the match).
