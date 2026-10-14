@@ -410,6 +410,8 @@ Ogni valore numerico di gioco è una chiave della configurazione di partita (`ap
 | `attackPct`, `attackStepPct`, `attackMaxPct` | 50, 10, 100 | costo dell'attacco, incremento per territorio aggiuntivo, tetto (§2.5, §9 n. 1 e 4) |
 | `defensePct` | 50 | costo della difesa (§2.5) |
 | `surrenderRefundPct` | 50 | quota del costo d'attacco restituita in caso di resa (§2.5) |
+| `retreatPct` | 100 | quota delle risorse del comune ceduto che chi si arrende porta in salvo, in un suo territorio confinante o nella capitale (§2.5) |
+| `garrisonPerUnit` | 10 | forza gratuita che ogni comune aggiunge alla difesa, anche senza risorse (§2.5) |
 | `capitalMoveEveryTurns` | 3 | intervallo tra due spostamenti della capitale (§2.9) |
 | `accumAlertPct`, `accumAlertMinTerritories` | 50, 3 | soglia e dimensione minima per l'allerta di accumulo (§2.8) |
 | `mergeCostTurns`, `mergeMaxUnits` | 0,5, 5 | costo per territorio e dimensione massima di un'area (§2.10, §9 n. 16) |
